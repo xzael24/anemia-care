@@ -53,3 +53,11 @@ android/app/*.jks
 
 # Widget Preview related
 .widget_preview/
+
+# Capstone: dataset mentah & turunan (besar, jangan di-commit)
+capstone/data/raw/
+capstone/data/upload/
+capstone/data/logs/
+
+# Package deploy (tarball hasil tar/scp ke VM)
+deploy/

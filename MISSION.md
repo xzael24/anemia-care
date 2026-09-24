@@ -18,4 +18,5 @@ Saya harus lulus mata kuliah Mobile Programming (materi dosen Arif Hidayah, 16 m
 ## Out of scope
 - Fokus ke web development lain (React, Vue, dsb.) — belum.
 - Native Android native (Kotlin) dalam-dalam — cukup paham konteks embedder-nya saja.
-- Backend/server-side kompleks — cukup buat nyambung ke REST API yang ada.
+- Backend/server-side: untuk keperluan capstone dipakai NestJS di folder `backend/` (dibantu tim),
+  tapi kompetensi utama di sini tetap Flutter/Dart (konsumen REST API).

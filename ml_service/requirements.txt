@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+numpy
+pandas
+pillow
+opencv-python-headless
+scikit-learn
+joblib
+python-multipart

@@ -1,0 +1,57 @@
+# Anemia Care — stack deploy (Docker Compose)
+# api   = backend NestJS (REST /api/*)
+# ml    = sidecar ML FastAPI (RandomForest 33D)
+# db    = Postgres 16 (persistensi riwayat skrining; TypeORM synchronize)
+# Catatan: auth JWT + web admin menyusul di tahap berikutnya.
+services:
+  ml:
+    build: ./ml_service
+    image: anemia-ml:latest
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: anemia
+      POSTGRES_PASSWORD: anemia
+      POSTGRES_DB: anemia
+    volumes:
+      - anemia_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anemia -d anemia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  api:
+    build: ./backend
+    image: anemia-api:latest
+    restart: unless-stopped
+    depends_on:
+      ml:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    environment:
+      PORT: "3000"
+      ML_SERVICE_URL: http://ml:8000
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: anemia
+      DB_PASSWORD: anemia
+      DB_NAME: anemia
+    ports:
+      - "3000:3000"
+
+volumes:
+  anemia_pgdata:
