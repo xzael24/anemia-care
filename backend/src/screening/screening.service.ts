@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { MlResult, MlService } from './ml.service';
 import { ScreeningStore } from './screening.store';
 
+export type ScreeningStatus = 'baru' | 'terverifikasi';
+
 export interface ScreeningRecord {
   id: string;
   indication: 'anemia' | 'normal';
@@ -11,6 +13,9 @@ export interface ScreeningRecord {
   source: 'ml' | 'mock';
   imageName: string;
   createdAt: string;
+  status: ScreeningStatus;
+  verifiedBy: string | null;
+  verifiedAt: string | null;
 }
 
 export const DISCLAIMER =
@@ -36,6 +41,9 @@ export class ScreeningService {
       source: result.source,
       imageName: file.originalname || 'foto.jpg',
       createdAt: new Date().toISOString(),
+      status: 'baru',
+      verifiedBy: null,
+      verifiedAt: null,
     };
     await this.store.save(record);
     return record;
@@ -43,5 +51,9 @@ export class ScreeningService {
 
   history(): Promise<ScreeningRecord[]> {
     return this.store.findRecent(HISTORY_LIMIT);
+  }
+
+  verify(id: string, username: string): Promise<ScreeningRecord> {
+    return this.store.verify(id, username);
   }
 }

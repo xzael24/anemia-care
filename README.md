@@ -112,9 +112,9 @@ curl http://192.168.56.101:3000/api/health
 curl -F "photo=@foto_kuku.jpg" http://192.168.56.101:3000/api/screening
 ```
 
-**Terverifikasi (Sep 2026):** container `api` + `ml` + `db` healthy di VM; foto anemic → `source:"ml"`, confidence 0,92 (indikasi anemia); foto non-anemic → FP anemia 0,67 (konsisten spec 0,771). **Persistensi terbukti:** riwayat tersimpan di Postgres & tetap ada setelah `docker compose restart api`. **Auth terbukti:** login → JWT HS256 (8 jam), `GET /api/screening` 401 tanpa token / 200 dengan token.
+**Terverifikasi (Sep 2026):** container `api` + `ml` + `db` healthy di VM; foto anemic → `source:"ml"`, confidence 0,92 (indikasi anemia); foto non-anemic → FP anemia 0,67 (konsisten spec 0,771). **Persistensi terbukti:** riwayat tersimpan di Postgres & tetap ada setelah `docker compose restart api`. **Auth terbukti:** login → JWT HS256 (8 jam), `GET /api/screening` 401 tanpa token / 200 dengan token. **Web admin terbukti (browser E2E):** login → dashboard (statistik + tabel riwayat) → verifikasi per-skrining → status `terverifikasi` + verifikator tersimpan di Postgres.
 
-> Catatan: tanpa `DB_HOST` (mis. unit test), riwayat & akun disimpan di memori (default aman). **Ganti `JWT_SECRET`/`ADMIN_PASSWORD` di environment produksi!** Langkah berikutnya: web admin (dashboard), integrasi Flutter (`dio`), DW star schema.
+> Catatan: tanpa `DB_HOST` (mis. unit test), riwayat & akun disimpan di memori (default aman). **Ganti `JWT_SECRET`/`ADMIN_PASSWORD` di environment produksi!** Langkah berikutnya: integrasi Flutter (`dio` → layar skrining), DW star schema.
 
 ## 🔌 API Endpoints
 
@@ -122,6 +122,7 @@ curl -F "photo=@foto_kuku.jpg" http://192.168.56.101:3000/api/screening
 |---|---|---|---|
 | `POST` | `/api/screening` | Publik | Skrining: upload foto kuku (`photo`) → indikasi awal |
 | `GET` | `/api/screening` | `admin`/`petugas` | Riwayat skrining (terbaru dulu, max 100) |
+| `PATCH` | `/api/screening/:id/verify` | `admin`/`petugas` | Verifikasi hasil oleh petugas (human-in-the-loop) |
 | `POST` | `/api/auth/login` | Publik | Login petugas → `{ accessToken, petugas }` |
 | `GET` | `/api/auth/me` | Token | Info petugas yang login |
 | `GET` | `/api/health` | Publik | Health check (Terminus) |
@@ -130,7 +131,7 @@ Credential default dev: `admin` / `admin123` (seed otomatis saat tabel `petugas`
 
 ## 🏗️ Teknologi
 
-Flutter · Dart · Provider · sqflite (SQLite) · shared_preferences · http (sementara JSONPlaceholder) / **dio → backend NestJS (proyek `backend/`)** · image_picker · path_provider · flutter_launcher_icons · flutter_native_splash
+Flutter · Dart · Provider · sqflite (SQLite) · shared_preferences · http (sementara JSONPlaceholder) / **dio → backend NestJS (proyek `backend/`)** · image_picker · path_provider · flutter_launcher_icons · flutter_native_splash · **Web admin: React + Vite + TypeScript (proyek `web_admin/`)**
 
 ## 📂 Struktur
 
@@ -138,6 +139,7 @@ Flutter · Dart · Provider · sqflite (SQLite) · shared_preferences · http (s
 lib/                    # kode app Flutter
 backend/                # API NestJS (capstone) — lihat backend/README.md
 ml_service/             # Sidecar ML FastAPI (RandomForest 33D) — lihat ml_service/README.md
+web_admin/              # Web admin monitoring petugas (React + Vite + TS) — lihat web_admin/README.md
 docker-compose.yml      # Stack deploy: api (NestJS) + ml (FastAPI) + db (Postgres)
 deploy/                 # Package deploy (tarball, git-ignored)
 capstone/               # mirror dataset + ML + docs capstone (sumber: repo CAPSTONE)

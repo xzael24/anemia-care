@@ -22,4 +22,13 @@ export class ScreeningEntity {
 
   @Column({ type: 'timestamptz' })
   createdAt: Date;
+
+  @Column({ default: 'baru' })
+  status: 'baru' | 'terverifikasi';
+
+  @Column({ type: 'varchar', nullable: true })
+  verifiedBy: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  verifiedAt: Date | null;
 }

@@ -6,6 +6,7 @@ import { AppModule } from './../src/app.module';
 describe('Anemia Care API (e2e)', () => {
   let app: INestApplication;
   let token = '';
+  let createdId = '';
 
   beforeAll(async () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -53,8 +54,10 @@ describe('Anemia Care API (e2e)', () => {
       indication: expect.any(String),
       confidence: expect.any(Number),
       source: 'mock',
+      status: 'baru',
       disclaimer: expect.stringContaining('BUKAN diagnosis medis'),
     });
+    createdId = res.body.id;
   });
 
   it('/api/auth/login benar -> accessToken', async () => {
@@ -74,5 +77,24 @@ describe('Anemia Care API (e2e)', () => {
       .expect(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('/api/screening/:id/verify dengan token -> status terverifikasi', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/screening/${createdId}/verify`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(res.body).toMatchObject({
+      id: createdId,
+      status: 'terverifikasi',
+      verifiedBy: 'admin',
+    });
+    expect(res.body.verifiedAt).toEqual(expect.any(String));
+  });
+
+  it('/api/screening/:id/verify tanpa token -> 401', async () => {
+    await request(app.getHttpServer())
+      .patch(`/api/screening/${createdId}/verify`)
+      .expect(401);
   });
 });

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ScreeningRecord } from './screening.service';
 
 /**
@@ -9,6 +9,7 @@ import { ScreeningRecord } from './screening.service';
 export abstract class ScreeningStore {
   abstract save(record: ScreeningRecord): Promise<ScreeningRecord>;
   abstract findRecent(limit: number): Promise<ScreeningRecord[]>;
+  abstract verify(id: string, username: string): Promise<ScreeningRecord>;
 }
 
 @Injectable()
@@ -22,5 +23,16 @@ export class InMemoryScreeningStore extends ScreeningStore {
 
   async findRecent(limit: number): Promise<ScreeningRecord[]> {
     return this.records.slice(0, limit);
+  }
+
+  async verify(id: string, username: string): Promise<ScreeningRecord> {
+    const record = this.records.find((r) => r.id === id);
+    if (!record) {
+      throw new NotFoundException(`Skrining ${id} tidak ditemukan`);
+    }
+    record.status = 'terverifikasi';
+    record.verifiedBy = username;
+    record.verifiedAt = new Date().toISOString();
+    return { ...record };
   }
 }

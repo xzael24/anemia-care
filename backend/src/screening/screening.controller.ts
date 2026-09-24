@@ -2,13 +2,16 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Param,
+  Patch,
   Post,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import {
@@ -40,5 +43,17 @@ export class ScreeningController {
   @Roles('admin', 'petugas')
   async history(): Promise<ScreeningRecord[]> {
     return this.screenings.history();
+  }
+
+  /** Verifikasi hasil oleh petugas (human-in-the-loop). */
+  @Patch(':id/verify')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'petugas')
+  async verify(
+    @Param('id') id: string,
+    @Req() req: { user: AuthUser },
+  ) {
+    const record = await this.screenings.verify(id, req.user.username);
+    return { ...record, disclaimer: DISCLAIMER };
   }
 }

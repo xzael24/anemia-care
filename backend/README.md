@@ -47,6 +47,7 @@ lalu jalankan backend dengan `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAM
 | GET    | `/api/health`       | Publik       | Health check (heap memory)                      |
 | POST   | `/api/screening`    | Publik       | Upload foto (field `photo`) → hasil skrining    |
 | GET    | `/api/screening`    | `admin`/`petugas` | Riwayat skrining (Postgres, max 100)       |
+| PATCH  | `/api/screening/:id/verify` | `admin`/`petugas` | Verifikasi hasil (human-in-the-loop)   |
 | POST   | `/api/auth/login`   | Publik       | Login → `{ accessToken, petugas }` (JWT 8 jam)  |
 | GET    | `/api/auth/me`      | Token        | Info petugas yang login                         |
 
