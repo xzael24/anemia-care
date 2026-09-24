@@ -15,7 +15,10 @@ class RekomendasiService {
   RekomendasiService({http.Client? client, this.baseUrl = _defaultBaseUrl})
     : _client = client ?? http.Client();
 
-  static const _defaultBaseUrl = 'http://10.0.2.2:3007/api';
+  static const _defaultBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:3007/api',
+  );
 
   static const gejalaOptions = <String, String>{
     'pusing': 'Pusing / sakit kepala',

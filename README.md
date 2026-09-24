@@ -71,6 +71,10 @@ Unduh APK rilis dari **[Releases](https://github.com/xzael24/anemia-care/release
 
 Cara install: buka file APK di HP Android → izinkan "Install dari sumber tidak dikenal" → selesai.
 
+> 📱 **APK dari Releases default mengarah ke Android emulator** (`10.0.2.2:3007`).
+> Untuk HP fisik / server, build ulang dengan `--dart-define=API_BASE_URL=...`
+> — lihat **[DEPLOY.md](DEPLOY.md)**.
+
 ## 🔧 Build dari Source
 
 ```bash

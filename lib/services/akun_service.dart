@@ -15,7 +15,12 @@ class AkunService {
   AkunService({http.Client? client, this.baseUrl = _defaultBaseUrl})
     : _client = client ?? http.Client();
 
-  static const _defaultBaseUrl = 'http://10.0.2.2:3007/api';
+  static const _defaultBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    // Default emulator: `10.0.2.2` = host Windows dari dalam Android emulator.
+    // Untuk HP fisik / server: flutter build apk --dart-define=API_BASE_URL=http://IP_LAN:3007/api
+    defaultValue: 'http://10.0.2.2:3007/api',
+  );
 
   final String baseUrl;
   final http.Client _client;

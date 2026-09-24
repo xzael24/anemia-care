@@ -13,13 +13,16 @@ import '../models/hasil_skrining.dart';
 ///
 /// Client HTTP bisa di-inject (MockClient di test). Base URL default
 /// `10.0.2.2` = host Windows dari dalam Android emulator; di perangkat fisik
-/// pakai `adb reverse tcp:3000 tcp:3000` lalu `http://localhost:3000/api`,
-/// atau IP LAN.
+/// build dengan `--dart-define=API_BASE_URL=http://IP_LAN:3007/api`
+/// (lihat DEPLOY.md).
 class SkriningService {
   SkriningService({http.Client? client, this.baseUrl = _defaultBaseUrl})
     : _client = client ?? http.Client();
 
-  static const _defaultBaseUrl = 'http://10.0.2.2:3007/api';
+  static const _defaultBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:3007/api',
+  );
 
   final String baseUrl;
   final http.Client _client;
