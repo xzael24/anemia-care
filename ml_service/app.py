@@ -26,7 +26,12 @@ from features import extract_features
 
 HERE = Path(__file__).resolve().parent
 MODEL_PATH = HERE / "rf_model.joblib"
-THRESHOLD = 0.5
+# Threshold recall-aware (eksperimen eval_threshold.py): dipilih VALIDATION agar
+# recall anemia >= 0.85 (sens 0.877 / spec 0.614 / prec 0.649 di TEST).
+# Trade-off disengaja: skrining awal lebih baik "false positive" daripada
+# meloloskan anemia (KONSEP: prioritas sensitivitas; output tetap indikasi
+# awal + disclaimer, bukan diagnosis).
+THRESHOLD = 0.39
 
 model = None
 

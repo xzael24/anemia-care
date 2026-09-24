@@ -57,6 +57,7 @@ Aplikasi ini menggabungkan dua project:
 
 - **Indikasi awal, bukan diagnosis** — output diframing sebagai skrining + rekomendasi cek darah, bukan penetapan diagnosis.
 - **Sensitivitas diutamakan** — recall tinggi untuk kelas anemia, spesifisitas menyusul (tidak ada anemia terlewat).
+- **Recall anemia ≥ 0,85 terpenuhi (iterasi 2026-09-24)** — RandomForest fitur 33D + threshold recall-aware `0,39` → test sens **0,877** / spec 0,614 / prec 0,649 (per-pasien). Threshold dipilih di validation (recall ≥ 0,85, prec tertinggi); trade-off disengaja: skrining lebih baik menandai berlebih daripada meloloskan anemia. Detail: `ml_service/eval_threshold.py`, `ml_service/eval_retrain.py`, `ml_service/rf_report.json`.
 - **Ambang WHO 2024** — anemia: Hb < 12,0 g/dL (wanita dewasa non-hamil) / < 13,0 g/dL (pria dewasa); disesuaikan usia & kehamilan. Skrining binary memakai cut-off 12,0 g/dL (lihat `capstone/scripts/preprocess/02_preprocess.py`).
 - **Nail bed pallor** — tanda klinis yang sah (WHO IMCI); sinyal warna kuku **lemah untuk anemia ringan**, jadi akurasi tidak boleh dijanjikan presisi (estimasi ±10–15 g/L).
 - **Tidak menjanjikan estimasi Hb presisi** — Hb ditampilkan sebagai pendukung/regresi, bukan pengganti lab.

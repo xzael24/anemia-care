@@ -28,11 +28,12 @@ Alur (dipakai run pertama, 2026-09-24):
    hasil (model + metrik) keluar via **tmpfiles.org** -> diunduh ke `data/artifacts/`.
 5. Verifikasi md5 di tiap transfer (`4af347f89e6926b1c7814d55254c83f7` untuk zip dataset).
 
-Hasil baseline (test, per-pasien; label Hb `hb_g_dl` dalam g/dL):
+Hasil baseline (test, per-pasien; label Hb `hb_g_dl` dalam g/dL; metrik @ threshold 0,5 kecuali disebut):
 
 | Model | acc | sens (recall anemic) | spec | prec | f1 | AUC |
 |---|---|---|---|---|---|---|
-| RandomForest (fitur 33D) | 0,780 | **0,789** | 0,771 | 0,738 | 0,763 | **0,846** |
+| RandomForest (fitur 33D) @th 0,5 | 0,780 | 0,789 | 0,771 | 0,738 | 0,763 | **0,846** |
+| RandomForest (fitur 33D) @th recall-aware 0,39 | 0,701 | **0,877** | 0,614 | 0,649 | 0,747 | **0,846** |
 | LogReg (fitur 33D) | 0,630 | 0,544 | 0,700 | 0,596 | 0,569 | 0,710 |
 | GradientBoosting (fitur 33D) | 0,693 | 0,579 | 0,786 | 0,688 | 0,629 | 0,788 |
 | CNN MobileNetV2 @th 0,65 | 0,586 | 0,541 | 0,627 | 0,571 | 0,556 | 0,646 |
@@ -50,14 +51,25 @@ Hasil baseline (test, per-pasien; label Hb `hb_g_dl` dalam g/dL):
 
 Kriteria sukses baseline:
 - [x] Feature-based: model terbaik dipilih via GroupKFold, metrik test tercatat (RF: AUC 0,846)
-- [ ] CNN: sens test ≥ 0,85 & spec ≥ 0,50 — **BELUM** (v1: sens 0,54; v2 fine-tune: sens 0,58).
-      Iterasi fine-tune sudah dicoba (gain kecil); kesimpulan & opsi lanjut di bawah.
+- [~] CNN: sens test ≥ 0,85 & spec ≥ 0,50 — **BELUM** (v1: sens 0,54; v2 fine-tune: sens 0,58).
+      Iterasi fine-tune sudah dicoba (gain kecil); **target sensitivitas sistem dipenuhi lewat
+      threshold recall-aware pada RF** (sens 0,877), CNN tetap cadangan.
 - [x] Regresi Hb: RMSE tercatat ≈ 20 g/L (≤ 24 g/L tercapai)
 - [x] Artifak terunduh & md5 diverifikasi
 
+Iterasi recall terbatas (2026-09-24) — RF sidecar, unit pasien:
+- Threshold scan di **validation** (recall ≥ 0,85, pilih prec tertinggi) → `t = 0,39`.
+  Evaluasi jujur di **test**: sens 0,877 / spec 0,614 / prec 0,649 (TP 50, FN 7, FP 27, TN 43).
+- Retrain `class_weight` (balanced / balanced_subsample) **tidak mengalahkan** threshold-only
+  (test sens 0,807 / 0,842 — di bawah target; AUC stagnan ≈ 0,84 — cap fitur 33D).
+- Keputusan: pakai model `rf_v1` yang ada + `THRESHOLD = 0,39` di `ml_service/app.py`
+  (trade-off spec/prec disengaja — prioritas: tidak ada anemia terlewat). Reproduksi:
+  `ml_service/eval_threshold.py`, `ml_service/eval_retrain.py`, hasil final di `ml_service/rf_report.json`.
+
 Status & opsi lanjut (masih terbuka):
-- **Model yang dipakai integrasi backend saat ini: RandomForest (sens 0,79 / spec 0,77 di test)**
-  — cukup untuk demo skrining tahap awal; CNN bisa di-swap belakangan.
+- **Model yang dipakai integrasi backend saat ini: RandomForest + threshold 0,39**
+  (sens 0,877 / spec 0,614 / prec 0,649 di test) — memenuhi prioritas sensitivitas sistem.
+  CNN bisa di-swap belakangan jika recall CNN dinaikkan.
 - Opsi menaikkan CNN (risiko gain kecil, butuh waktu riset): unfreeze lebih banyak
   layer + cosine LR + MixUp; pra-proses warna standar (kalibrasi white balance);
   tambah data lintas sumber. Alternatif pragmatis: **ensemble probabilitas RF + CNN**,
