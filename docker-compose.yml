@@ -56,6 +56,11 @@ services:
       ADMIN_PASSWORD: admin123
     ports:
       - "3000:3000"
+      # Port kedua (stabil untuk dev): Hindari konflik bila tool lain (mis.
+      # workspace agent/harness) ikut menguasai 3000 di loopback host —
+      # koneksi dari Dart/emulator bisa salah jatuh ke server itu. 3007 hanya
+      # dipublikasikan Docker sehingga selalu mengarah ke API ini.
+      - "3007:3000"
 
 volumes:
   anemia_pgdata:

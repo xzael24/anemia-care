@@ -26,7 +26,7 @@ Aplikasi ini menggabungkan dua project:
 
 **Status aplikasi:**
 - ✅ **Tahap 1 (Modul 1–15):** app pemantauan + fitur latihan (jadwal, galeri lab, direktori *placeholder*) — APK rilis tersedia
-- 🚧 **Tahap 2 (Capstone):** fitur inti skrining foto kuku + integrasi backend NestJS — sedang dibangun
+- 🚧 **Tahap 2 (Capstone):** fitur inti skrining foto kuku **terintegrasi backend** (mobile → NestJS → ML → Postgres → verifikasi web admin). Berikutnya: fuzzy, DW, akun pengguna
 
 ## ✨ Fitur
 
@@ -34,7 +34,7 @@ Aplikasi ini menggabungkan dua project:
 
 | Fitur | Keterangan | Matkul Capstone |
 |---|---|---|
-| 📷 **Skrining Foto Kuku** | Capture → **gerbang validasi citra** (kuku bersih tanpa inai/kutek, struktur utuh, zona sampel cukup) → analisis ML | PCD + ML |
+| 📷 **Skrining Foto Kuku** | Capture (kamera/galeri) → **petunjuk kualitas foto** → `POST /api/screening` (multipart) → analisis ML | PCD + ML |
 | 🎯 **Hasil Indikasi** | Badge 🟢/🟡/🔴 + confidence score + **disclaimer permanen** ("bukan diagnosis medis") | ML + Framework |
 | 🧠 **Rekomendasi Personal (Fuzzy)** | Konteks pengguna (gejala, menstruasi, kehamilan, tipe kulit) digabung hasil visual → rekomendasi tindak lanjut | PSC1 |
 | 🗂️ **Riwayat & Verifikasi** | Riwayat skrining per akun + status verifikasi petugas (web) + tren indikasi | Framework + DW |
@@ -86,9 +86,14 @@ Stack backend + ML dibungkus container (`docker-compose.yml`):
 
 | Service | Image | Port | Fungsi |
 |---|---|---|---|
-| `api` | `anemia-api` | 3000 | Backend NestJS (`/api/*`) |
+| `api` | `anemia-api` | 3000 (+ **3007** alternatif) | Backend NestJS (`/api/*`) |
 | `ml` | `anemia-ml` | 8000 | Sidecar ML FastAPI (RandomForest 33D) |
 | `db` | `postgres:16-alpine` | 5432 (internal) | Persistensi riwayat skrining (TypeORM synchronize) |
+
+> 💡 **Port 3007** = publikasi kedua khusus Docker. Dipakai dev saat tool lain
+> (mis. workspace agent) ikut mendengar di `3000` loopback host, sehingga
+> koneksi dari Dart/emulator bisa salah jatuh ke server lain. Selalu andalkan
+> `3007` dari aplikasi Flutter (default `10.0.2.2:3007`).
 
 **Jalankan lokal (Docker Desktop):**
 
@@ -112,9 +117,9 @@ curl http://192.168.56.101:3000/api/health
 curl -F "photo=@foto_kuku.jpg" http://192.168.56.101:3000/api/screening
 ```
 
-**Terverifikasi (Sep 2026):** container `api` + `ml` + `db` healthy di VM; foto anemic → `source:"ml"`, confidence 0,92 (indikasi anemia); foto non-anemic → FP anemia 0,67 (konsisten spec 0,771). **Persistensi terbukti:** riwayat tersimpan di Postgres & tetap ada setelah `docker compose restart api`. **Auth terbukti:** login → JWT HS256 (8 jam), `GET /api/screening` 401 tanpa token / 200 dengan token. **Web admin terbukti (browser E2E):** login → dashboard (statistik + tabel riwayat) → verifikasi per-skrining → status `terverifikasi` + verifikator tersimpan di Postgres.
+**Terverifikasi (Sep 2026):** container `api` + `ml` + `db` healthy di VM; foto anemic → `source:"ml"`, confidence 0,92 (indikasi anemia); foto non-anemic → FP anemia 0,67 (konsisten spec 0,771). **Persistensi terbukti:** riwayat tersimpan di Postgres & tetap ada setelah `docker compose restart api`. **Auth terbukti:** login → JWT HS256 (8 jam), `GET /api/screening` 401 tanpa token / 200 dengan token. **Web admin terbukti (browser E2E):** login → dashboard (statistik + tabel riwayat) → verifikasi per-skrining → status `terverifikasi` + verifikator tersimpan di Postgres. **Mobile terbukti:** `SkriningService` (Dart, multipart) → `POST /api/screening` 201 `source:"ml"` + disclaimer (smoke e2e di suite test Flutter); 44 test Flutter lulus.
 
-> Catatan: tanpa `DB_HOST` (mis. unit test), riwayat & akun disimpan di memori (default aman). **Ganti `JWT_SECRET`/`ADMIN_PASSWORD` di environment produksi!** Langkah berikutnya: integrasi Flutter (`dio` → layar skrining), DW star schema.
+> Catatan: tanpa `DB_HOST` (mis. unit test), riwayat & akun disimpan di memori (default aman). **Ganti `JWT_SECRET`/`ADMIN_PASSWORD` di environment produksi!** Langkah berikutnya: DW star schema (dashboard agregat), fuzzy, akun pengguna.
 
 ## 🔌 API Endpoints
 
@@ -131,7 +136,7 @@ Credential default dev: `admin` / `admin123` (seed otomatis saat tabel `petugas`
 
 ## 🏗️ Teknologi
 
-Flutter · Dart · Provider · sqflite (SQLite) · shared_preferences · http (sementara JSONPlaceholder) / **dio → backend NestJS (proyek `backend/`)** · image_picker · path_provider · flutter_launcher_icons · flutter_native_splash · **Web admin: React + Vite + TypeScript (proyek `web_admin/`)**
+Flutter · Dart · Provider · sqflite (SQLite) · shared_preferences · http (multipart `POST /api/screening` via `SkriningService`; PasienService masih JSONPlaceholder latihan Modul 10) + http_parser · image_picker · path_provider · flutter_launcher_icons · flutter_native_splash · **Web admin: React + Vite + TypeScript (proyek `web_admin/`)**
 
 ## 📂 Struktur
 
@@ -148,11 +153,12 @@ capstone/               # mirror dataset + ML + docs capstone (sumber: repo CAPS
   docs/                 #   KONSEP.md, guideline WHO 2024, dll
 lib/
   main.dart             # App Shell: 4 tab + Provider + named routes
-  models/               # AnemiaLogic, JadwalModel, UserPasien...
-  services/             # PasienService (API), JadwalStore (SQLite), GaleriLabService
-  screens/              # Dashboard, Direktori, Galeri, Statistik, Tentang...
+  models/               # AnemiaLogic, JadwalModel, UserPasien, HasilSkrining
+  services/             # PasienService (API), JadwalStore (SQLite), GaleriLabService,
+                        # SkriningService (multipart → /api/screening), RiwayatSkriningStore (SQLite)
+  screens/              # Dashboard, Direktori, Galeri, Statistik, Tentang, Skrining...
   widgets/              # ProfileCard
-test/                   # 35 test (unit + widget)
+test/                   # 44 test (unit + widget + smoke e2e API lokal)
 integration_test/       # E2E happy path (butuh emulator)
 lessons/                # Catatan belajar 16 modul (HTML)
 learning-records/       # Refleksi tiap modul

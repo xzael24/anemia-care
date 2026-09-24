@@ -5,6 +5,7 @@ import '../models/anemia_logic.dart';
 import '../models/jadwal_model.dart';
 import 'detail_pasien_screen.dart';
 import 'galeri_screen.dart';
+import 'skrining_screen.dart';
 
 /// Dashboard anemia (tab Beranda) — layout responsif dari Modul 7
 /// + navigasi antar halaman dari Modul 8.
@@ -25,10 +26,12 @@ class DashboardAnemia extends StatelessWidget {
     {'nama': 'Fajar Nugroho', 'hb': 12.6, 'umur': 23},
   ];
 
-  // Menu cepat — record (Dart 3) + collection for (Modul 5)
+  // Menu cepat — record (Dart 3) + collection for (Modul 5).
+// Empat tile (2 baris di layar sempit) — jangan tambah jumlahnya supaya
+// layout "Daftar Pasien" di bawah tidak terdorong keluar layar di test.
   static const List<({IconData icon, String label})> _menu = [
+    (icon: Icons.health_and_safety, label: 'Skrining'),
     (icon: Icons.vaccines, label: 'Input Lab'),
-    (icon: Icons.history, label: 'Riwayat'),
     (icon: Icons.calendar_month, label: 'Jadwal'),
     (icon: Icons.help, label: 'Info Anemia'),
   ];
@@ -119,6 +122,17 @@ class DashboardAnemia extends StatelessWidget {
                         InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () {
+                            // Fitur inti capstone: skrining foto kuku →
+                            // backend NestJS (foto → indikasi awal + disclaimer).
+                            if (m.label == 'Skrining') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SkriningPage(),
+                                ),
+                              );
+                              return;
+                            }
                             // Modul 12: tile "Input Lab" sekarang beneran —
                             // buka Galeri Hasil Lab (kamera/galeri + simpan permanen).
                             if (m.label == 'Input Lab') {
