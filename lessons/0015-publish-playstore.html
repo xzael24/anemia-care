@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 015 — Publikasi: GitHub Releases (adaptasi Play Store)</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 015 · Modul 15 · Publish Aplikasi — adaptasi: GitHub Releases</p>
+<h1>Anemia Care v1.0.0 sudah bisa di-download siapa aja 📦</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/publish-playstore.html">Modul 15: Publish ke Google Play Store</a>.</p>
+
+<p><strong>Keputusan tercatat:</strong> berdasarkan arahan user, rilis dilakukan lewat <strong>GitHub Releases</strong> — ini persis <strong>Skenario C</strong> yang dosen sediakan sendiri buat yang belum punya akun Play Console (“Direct APK — share file .apk, user install manual”). Materi Play Store lengkap tetap dipelajari &amp; dirangkum — AAB 49.4MB + keystore + signing dari M14 udah siap kalau mau lanjut ke Play Console ($25) kapan pun.</p>
+
+<h2>Inti materi dosen (Play Store) — dirangkum</h2>
+<ul>
+<li><strong>Akun</strong>: Google Play Developer $25 sekali (personal: cocok mahasiswa; wajib verifikasi identitas KTP). Kebijakan 2023+: akun baru wajib <strong>closed testing 12 tester selama 14 hari</strong> sebelum produksi.</li>
+<li><strong>Create app</strong>: nama, bahasa (id-ID), App, Free, 2 deklarasi kepatuhan.</li>
+<li><strong>Asset wajib</strong>: app icon 512×512 (tanpa alpha), feature graphic 1024×500, minimal 2 screenshot per kategori device, promo video opsional. Tools gratis: Figma, Canva, appmockup, <code>flutter screenshot</code>.</li>
+<li><strong>Store listing</strong>: short description (≤80 char), full description (≤4000), icon, feature graphic, screenshot. Pola listing di materi: hook → ✨ fitur → 🔒 privasi → 💡 cocok untuk → footer.</li>
+<li><strong>App content</strong>: privacy policy (wajib — bisa gratis via GitHub Pages generator), ads, app access, content rating ESRB, target audience, data safety (app kita: “No data collected” — semua lokal!).</li>
+<li><strong>Closed testing → Promote</strong>: upload AAB → release notes format <code>&lt;id-ID&gt;...&lt;/id-ID&gt;</code> → 12 tester → 14 hari → promote ke production → staged rollout (10% → 50% → 100%).</li>
+<li><strong>Update</strong>: naikkan versionCode/versionName di pubspec (1.0.0+1 → 1.1.0+2) → AAB baru → upload → release notes.</li>
+<li><strong>Penyebab ditolak</strong>: privacy policy mati, permission tak terpakai (ingat pelajaran kita: CAMERA gak dipasang — image_picker pakai intent sistem!), screenshot misleading, crash di device bersih, claim “resmi” tanpa lisensi, data safety inaccurate.</li>
+</ul>
+
+<h2>Adaptasi: Skenario C — GitHub Releases (yang dikerjakan)</h2>
+<p>Dosen juga menyediakan jalur tanpa Play Store, plus aturan <strong>“Wajib (semua skenario): buat halaman GitHub README berisi screenshot, deskripsi, dan link download”</strong>. Itu yang kita eksekusi:</p>
+<ol>
+<li><strong>README.md</strong> — deskripsi, tabel fitur per modul, link download, cara build, teknologi, struktur, disclaimer medis.</li>
+<li><strong>git init + commit</strong> — 219 file; rahasia signing (key.properties, upload-keystore.jks) dipastikan ke-ignore dulu sebelum commit.</li>
+<li><strong>Repo public <code>xzael24/anemia-care</code></strong> + push <code>main</code>.</li>
+<li><strong>Release v1.0.0</strong> dengan aset installable:
+<pre><code>$ gh release create v1.0.0 \
+    build/app/outputs/flutter-apk/app-release.apk \
+    build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+    build/app/outputs/bundle/release/app-release.aab \
+    --title "Anemia Care v1.0.0" --notes-file release-notes.md</code></pre></li>
+</ol>
+<p>Hasil: <a href="https://github.com/xzael24/anemia-care/releases/tag/v1.0.0">github.com/xzael24/anemia-care/releases/tag/v1.0.0</a> — APK universal 50.4MB, APK arm64 17.8MB, AAB 49.4MB, lengkap dengan release notes id-ID.</p>
+
+<h2>Jebakan nyata yang ketemu (dokumentasi penting!)</h2>
+<ul>
+<li><strong>Env <code>GITHUB_TOKEN</code> invalid nge-block gh CLI</strong> — <code>gh auth status</code> nunjukin dua akun: token env (invalid, “active”) dan keyring xzael24 (valid). Semua perintah gh error 401 sampai env dibersihin (<code>Remove-Item Env:GITHUB_TOKEN</code>). Pelajaran: kalau gh aneh, cek dulu env var token vs keyring.</li>
+<li><strong>CRLF warnings saat commit</strong> — LF↔CRLF conversion warning normal di Windows; aman.</li>
+<li><strong>Quoting PowerShell di <code>gh api -q</code></strong> — string query pakai kutip tunggal bikin parsing aneh; pakai file/heredoc atau >= 2 arg kena. (Minor.)</li>
+</ul>
+
+<h2>Tantangan dosen → adaptasi</h2>
+<table>
+<tr><th>Tantangan</th><th>Status</th></tr>
+<tr><td>Skenario A (akun Play Console)</td><td>📝 teori — AAB &amp; signing siap; butuh $25 + verifikasi identitas</td></tr>
+<tr><td>Skenario B (asset submission-ready)</td><td>📝 sebagian — asset icon 512+ (dari M14); screenshot HP belum (butuh sesi flutter run)</td></tr>
+<tr><td><strong>Skenario C (tanpa Play Store)</strong></td><td>✅ GitHub Releases + direct APK + README wajib</td></tr>
+<tr><td>Wajib: GitHub README (screenshot, deskripsi, link)</td><td>✅ deskripsi + feature table + link release; screenshot menyusul sesi emulator</td></tr>
+</table>
+
+<h2>File yang berubah</h2>
+<table>
+<tr><th>File</th><th>Isi</th></tr>
+<tr><td><code>README.md</code></td><td>Wajib dosen: deskripsi app, fitur per modul, link download, build, disclaimer</td></tr>
+<tr><td><code>release-notes.md</code></td><td>Notes release v1.0.0 (fitur, file+ukuran, cara install, disclaimer)</td></tr>
+<tr><td><code>.gitignore</code></td><td>+ <code>**/android/**/debug.keystore</code></td></tr>
+<tr><td>Git repo baru</td><td>219 file, branch main, remote origin → github.com/xzael24/anemia-care</td></tr>
+<tr><td>GitHub Release</td><td>v1.0.0 dengan 3 aset (APK universal, arm64, AAB) + notes</td></tr>
+</table>
+
+<h2>Tugas praktik</h2>
+<ol>
+<li>Buka <a href="https://github.com/xzael24/anemia-care/releases/tag/v1.0.0">halaman Release</a> → download <code>app-arm64-v8a-release.apk</code> (17.8MB) → install di HP → kasi screenshot ke repo (update README) kalau udah kebukti jalan.</li>
+<li>Bandingin: apa bedanya publish lewat GitHub vs Play Store? (jawaban: Play Store = discoverability + auto-update + review, tapi $25 + 12 tester 14 hari; GitHub = gratis & langsung, tapi install manual.)</li>
+<li>Kalau suatu hari mau Play Store: tinggal follow rangkuman materi — AAB + signing udah siap, cukup isi listing + content rating + privacy policy.</li>
+</ol>
+
+<div class="quiz" id="q1">
+<h3>Q1: Rilis kita pakai skenario dosen yang mana?</h3>
+<button class="opt" data-q="q1" data-correct="true">Skenario C — tanpa Play Store: GitHub Releases + direct APK</button>
+<button class="opt" data-q="q1">Skenario A — Play Console produksi</button>
+<button class="opt" data-q="q1">Skenario B — submission-ready asset doang</button>
+<p class="explain">Dosen nyediain Skenario C buat yang belum siap bayar $25 — kita pakai itu (GitHub Releases) + README wajib.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Yang WAJIB buat semua skenario menurut dosen…</h3>
+<button class="opt" data-q="q2" data-correct="true">GitHub README: screenshot, deskripsi, link download</button>
+<button class="opt" data-q="q2">Akun Play Console berbayar</button>
+<button class="opt" data-q="q2">Feature graphic 1024×500</button>
+<p class="explain">README jadi halaman “wajib” lintas skenario — kita buat + link release langsung di dalamnya.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Keystore &amp; key.properties ikut ke-commit ke GitHub?</h3>
+<button class="opt" data-q="q3" data-correct="true">Nggak — sudah di .gitignore sebelum commit</button>
+<button class="opt" data-q="q3">Iya, biar teman bisa release</button>
+<button class="opt" data-q="q3">Hanya key.properties</button>
+<p class="explain">Kita verifikasi via git check-ignore sebelum commit — keystore hilang = nggak bisa update app.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: GITHUB_TOKEN env invalid bikin gh CLI…</h3>
+<button class="opt" data-q="q4" data-correct="true">Error 401 Bad credentials walau keyring udah login</button>
+<button class="opt" data-q="q4">Aman, keyring selalu menang</button>
+<button class="opt" data-q="q4">Otomatis pindah ke token lain</button>
+<p class="explain">Env var override keyring — solusi: Remove-Item Env:GITHUB_TOKEN lalu gh normal lagi.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Kalau mau lanjut ke Play Store, yang udah siap dari M14…</h3>
+<button class="opt" data-q="q5" data-correct="true">AAB 49.4MB + keystore upload + signing config</button>
+<button class="opt" data-q="q5">Belum ada apa-apa</button>
+<button class="opt" data-q="q5">Hanya APP icon</button>
+<p class="explain">Play Console tinggal isi listing + asset + content rating — fondasi AAB &amp; signing udah beres.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca materi Play Store resmi: <a href="https://support.google.com/googleplay/android-developer/answer/113469">Peluncuran rilis produksi (Play Console help)</a>, <a href="https://developer.android.com/studio/publish">Android: Publish</a>, dan panduan GitHub: <a href="https://docs.github.com/repositories/releasing-projects-on-github/managing-releases-in-a-repository">GitHub Docs: Managing releases</a> + <a href="https://cli.github.com/manual/gh_release_create">gh release create</a>. Alternatif distribusi di materi (Firebase App Distribution, F-Droid) juga layak dibaca.</p>
+
+<p>Sebelumnya: <a href="0014-build-release.html">Lesson 014 — Build APK &amp; AAB</a>.</p>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

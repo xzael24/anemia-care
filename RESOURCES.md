@@ -76,6 +76,14 @@
   Modul 14 — generate ikon launcher + adaptive icon dari 1 image_path.
 - [pub.dev: flutter_native_splash](https://pub.dev/packages/flutter_native_splash)
   Modul 14 — splash screen native lintas Android (termasuk Android 12+ styles v31).
+- [Play Console: Publish &amp; rilis produksi](https://support.google.com/googleplay/android-developer/answer/113469)
+  Primary source Modul 15 — alur rilis produksi Play Store (closed testing, staged rollout, update).
+- [Android: Publish](https://developer.android.com/studio/publish)
+  Modul 15 — opsi distribusi & checklist rilis Android (Play, internal, alternative stores).
+- [GitHub Docs: Managing releases](https://docs.github.com/repositories/releasing-projects-on-github/managing-releases-in-a-repository)
+  Modul 15 (Skenario C) — bikin release, attach binary/asset, tag.
+- [gh CLI: gh release create](https://cli.github.com/manual/gh_release_create)
+  Modul 15 (Skenario C) — perintah release + upload aset dari terminal.
 - [pub.dev](https://pub.dev)
   Registry package Flutter/Dart (http, sqflite, go_router, dll). Cek sebelum menulis ulang sesuatu yang sudah ada package-nya.
 - [Flutter codelabs resmi](https://docs.flutter.dev/get-started/codelab)
