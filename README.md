@@ -66,8 +66,8 @@ Aplikasi ini menggabungkan dua project:
 
 Unduh APK rilis dari **[Releases](https://github.com/xzael24/anemia-care/releases)**:
 
-- `app-release.apk` — universal (semua arsitektur, **50.4 MB**)
-- `app-arm64-v8a-release.apk` — khusus ARM64 (kebanyakan HP modern, **17.8 MB**)
+- `app-release.apk` — universal (semua arsitektur, **51.1 MB**)
+- `app-arm64-v8a-release.apk` — khusus ARM64 (kebanyakan HP modern, **18.0 MB**)
 
 Cara install: buka file APK di HP Android → izinkan "Install dari sumber tidak dikenal" → selesai.
 
