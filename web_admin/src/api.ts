@@ -6,6 +6,9 @@ export interface Screening {
   source: 'ml' | 'mock';
   imageName: string;
   createdAt: string;
+  pasienId: string | null;
+  /** Info pemilik akun (null = skrining anonim). Diisi backend via join. */
+  pasien: { username: string; nama: string } | null;
   status: 'baru' | 'terverifikasi';
   verifiedBy: string | null;
   verifiedAt: string | null;
@@ -26,6 +29,10 @@ export interface DwSummary {
   verified: number;
   anemiaRatePct: number | null;
   avgConfidence: number | null;
+  /** Skrining yang berasal dari akun pasien (dimensi dim_pasien). */
+  pasien: number;
+  perempuan: number;
+  laki: number;
 }
 
 export interface DwTrendPoint {

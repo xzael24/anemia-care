@@ -190,6 +190,10 @@ body {
   padding: 4px 10px;
   border-radius: 999px;
 }
+.dw-akun {
+  font-size: 12px;
+  color: var(--muted);
+}
 .dw-leg {
   font-size: 12px;
   color: var(--muted);

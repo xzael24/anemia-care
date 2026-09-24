@@ -132,6 +132,11 @@ export default function DashboardPage({ onLogout }: Props) {
                     ? '—'
                     : `${dw.summary.anemiaRatePct}%`}
                 </span>
+                <span className="dw-akun">
+                  {dw.summary.pasien > 0
+                    ? `${dw.summary.pasien} dari akun pasien`
+                    : 'Belum ada skrining ber-akun'}
+                </span>
                 <span className="dw-leg">
                   <i className="dot dot-anemia" /> anemia
                   <i className="dot dot-normal" /> normal
@@ -222,6 +227,7 @@ export default function DashboardPage({ onLogout }: Props) {
                   <tr>
                     <th>Waktu</th>
                     <th>Foto</th>
+                    <th>Pasien</th>
                     <th>Indikasi</th>
                     <th>Confidence</th>
                     <th>Sumber</th>
@@ -235,6 +241,11 @@ export default function DashboardPage({ onLogout }: Props) {
                     <tr key={r.id}>
                       <td className="nowrap">{fmtTime(r.createdAt)}</td>
                       <td title={r.imageName}>{r.imageName}</td>
+                      <td className="nowrap">
+                        {r.pasien
+                          ? r.pasien.nama || `@${r.pasien.username}`
+                          : '—'}
+                      </td>
                       <td>
                         <span
                           className={

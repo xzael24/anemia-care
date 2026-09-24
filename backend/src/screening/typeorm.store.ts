@@ -32,10 +32,12 @@ export class TypeOrmScreeningStore extends ScreeningStore {
         's.pasien',
         PasienEntity,
         'p',
-        'p.id = s."pasienId"',
+        'p.id::text = s."pasienId"',
       )
-      .orderBy('s."createdAt"', 'DESC')
-      .take(limit)
+      .orderBy('s.createdAt', 'DESC')
+      // limit() (bukan take()): join 1:1 ke pasien — tanpa subquery DISTINCT
+      // yang bikin TypeORM salah-alias kolom createdAt saat pagination.
+      .limit(limit)
       .getMany();
     return rows.map((r) => this.mapRow(r));
   }
