@@ -1,0 +1,42 @@
+{
+  "overlap_matrix": {
+    "nature": {
+      "nature": 0,
+      "ghana": 0,
+      "ayushcl": 0,
+      "udayranjan": 0
+    },
+    "ghana": {
+      "nature": 0,
+      "ghana": 0,
+      "ayushcl": 914,
+      "udayranjan": 1627
+    },
+    "ayushcl": {
+      "nature": 0,
+      "ghana": 914,
+      "ayushcl": 0,
+      "udayranjan": 914
+    },
+    "udayranjan": {
+      "nature": 0,
+      "ghana": 1627,
+      "ayushcl": 914,
+      "udayranjan": 0
+    }
+  },
+  "kept_after_dedup": {
+    "nature": 251,
+    "ghana": 2097,
+    "ayushcl": 0,
+    "udayranjan": 1843
+  },
+  "redundant": {
+    "nature": 0,
+    "ghana": 2163,
+    "ayushcl": 1777,
+    "udayranjan": 5198
+  },
+  "n_unique_global": 4191,
+  "n_label_conflicts": 0
+}

@@ -1,0 +1,52 @@
+{
+  "seed": 42,
+  "ratio": {
+    "train": 0.7,
+    "val": 0.15,
+    "test": 0.15
+  },
+  "n_patients": 838,
+  "n_images_total": 2907,
+  "by_source": {
+    "ghana": {
+      "images": 2097,
+      "patients": 528
+    },
+    "nature": {
+      "images": 750,
+      "patients": 250
+    },
+    "udayranjan": {
+      "images": 60,
+      "patients": 60
+    }
+  },
+  "splits": {
+    "train": {
+      "images": 2047,
+      "patients": 586
+    },
+    "val": {
+      "images": 428,
+      "patients": 125
+    },
+    "test": {
+      "images": 432,
+      "patients": 127
+    }
+  },
+  "label_balance_per_split": {
+    "train": {
+      "non-anemic": 1049,
+      "anemic": 998
+    },
+    "val": {
+      "non-anemic": 215,
+      "anemic": 213
+    },
+    "test": {
+      "non-anemic": 225,
+      "anemic": 207
+    }
+  }
+}
