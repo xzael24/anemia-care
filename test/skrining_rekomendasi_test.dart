@@ -5,16 +5,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:anemia/models/hasil_skrining.dart';
+import 'package:anemia/models/pasien.dart';
 import 'package:anemia/models/rekomendasi_hasil.dart';
 import 'package:anemia/screens/skrining_screen.dart';
 import 'package:anemia/services/rekomendasi_service.dart';
+import 'package:anemia/services/session_store.dart';
 import 'package:anemia/services/skrining_service.dart';
 
 import 'fakes/in_memory_riwayat_store.dart';
+import 'fakes/in_memory_session_store.dart';
 
 class _FakeSkriningService extends SkriningService {
   @override
-  Future<HasilSkrining> skriningFoto(File foto) async => _hasilAnemia();
+  Future<HasilSkrining> skriningFoto(File foto, {String? token}) async =>
+      _hasilAnemia();
 }
 
 class _FakeRekomendasiService extends RekomendasiService {
@@ -22,6 +26,8 @@ class _FakeRekomendasiService extends RekomendasiService {
 
   final Exception? error;
   String? lastGejala;
+  String? lastRisiko;
+  String? lastTipeKulit;
 
   @override
   Future<RekomendasiHasil> rekomendasi({
@@ -35,6 +41,8 @@ class _FakeRekomendasiService extends RekomendasiService {
     final err = error;
     if (err != null) throw err;
     lastGejala = gejala.join(',');
+    lastRisiko = risiko.join(',');
+    lastTipeKulit = tipeKulit;
     return RekomendasiHasil(
       rekomendasi: 0.837,
       tingkat: 'tinggi',
@@ -86,13 +94,14 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  Widget bungkus(RekomendasiService rekomendasi) {
+  Widget bungkus(RekomendasiService rekomendasi, {SessionStore? session}) {
     return MaterialApp(
       home: SkriningPage(
         service: _FakeSkriningService(),
         store: InMemoryRiwayatStore(),
         pickFoto: pickFoto,
         rekomendasiService: rekomendasi,
+        sessionStore: session ?? InMemorySessionStore(),
       ),
     );
   }
@@ -166,5 +175,49 @@ void main() {
       find.text('Tidak dapat terhubung ke server rekomendasi'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('profil akun (hamil, riwayat anemia, kulit gelap) mengisi form '
+      'rekomendasi otomatis', (tester) async {
+    besarLayar(tester);
+    final fake = _FakeRekomendasiService();
+    final session = InMemorySessionStore();
+    await session.simpan(
+      'jwt.test',
+      const Pasien(
+        id: 'p1',
+        username: 'sari',
+        nama: 'Sari Amalia',
+        usia: 24,
+        gender: 'perempuan',
+        tipeKulit: 'gelap',
+        hamil: true,
+        riwayatAnemia: true,
+      ),
+    );
+    await tester.pumpWidget(bungkus(fake, session: session));
+    await keHasil(tester);
+
+    await tester.tap(find.text('Rekomendasi tindak lanjut (fuzzy)'));
+    await tester.pumpAndSettle();
+
+    // Pre-fill dari profil: jenis kulit 'Gelap' terpilih di dropdown.
+    expect(find.text('Gelap'), findsOneWidget);
+
+    // Checkbox risiko sudah tercentang dari profil.
+    final hamil = tester.widget<CheckboxListTile>(
+      find.widgetWithText(CheckboxListTile, 'Sedang hamil'),
+    );
+    final riwayat = tester.widget<CheckboxListTile>(
+      find.widgetWithText(CheckboxListTile, 'Riwayat anemia'),
+    );
+    expect(hamil.value, isTrue);
+    expect(riwayat.value, isTrue);
+
+    // Hitung → backend menerima risiko & tipe kulit dari profil.
+    await tester.tap(find.text('Hitung Rekomendasi'));
+    await tester.pumpAndSettle();
+    expect(fake.lastRisiko, 'hamil,riwayat_anemia');
+    expect(fake.lastTipeKulit, 'gelap');
   });
 }

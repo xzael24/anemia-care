@@ -23,6 +23,10 @@ export class ScreeningEntity {
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 
+  /** Akun pasien yang melakukan skrining (null = anonim). */
+  @Column({ type: 'varchar', nullable: true })
+  pasienId: string | null;
+
   @Column({ default: 'baru' })
   status: 'baru' | 'terverifikasi';
 

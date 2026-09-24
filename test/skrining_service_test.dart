@@ -111,6 +111,38 @@ void main() {
     );
   });
 
+  test('token pasien → header Authorization=Bearer dikirim', () async {
+    final client = MockClient((request) async {
+      expect(
+        request.headers['Authorization'],
+        'Bearer jwt.pasien.123',
+      );
+      return http.Response(
+        jsonEncode(hasilJson),
+        201,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final hasil = await serviceDengan(client).skriningFoto(
+      fotoJpg,
+      token: 'jwt.pasien.123',
+    );
+    expect(hasil.id, 'c8f7-1234');
+  });
+
+  test('tanpa token → header Authorization tidak dikirim', () async {
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      return http.Response(
+        jsonEncode(hasilJson),
+        201,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    await serviceDengan(client).skriningFoto(fotoJpg);
+  });
+
   test('SocketException → pesan ramah "tidak dapat terhubung"', () async {
     final client = MockClient(
       (request) async => throw const SocketException('connection refused'),

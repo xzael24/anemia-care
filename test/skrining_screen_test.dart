@@ -9,6 +9,7 @@ import 'package:anemia/screens/skrining_screen.dart';
 import 'package:anemia/services/skrining_service.dart';
 
 import 'fakes/in_memory_riwayat_store.dart';
+import 'fakes/in_memory_session_store.dart';
 
 /// Service palsu — tanpa HTTP sungguhan (widget test).
 class _FakeSkriningService extends SkriningService {
@@ -18,7 +19,7 @@ class _FakeSkriningService extends SkriningService {
   final Exception? _error;
 
   @override
-  Future<HasilSkrining> skriningFoto(File foto) async {
+  Future<HasilSkrining> skriningFoto(File foto, {String? token}) async {
     final err = _error;
     if (err != null) throw err;
     final hasil = _hasil;
@@ -70,6 +71,7 @@ void main() {
         service: service,
         store: store ?? InMemoryRiwayatStore(),
         pickFoto: pickFoto,
+        sessionStore: InMemorySessionStore(),
       ),
     );
   }

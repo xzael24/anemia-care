@@ -9,6 +9,10 @@ import { ScreeningRecord } from './screening.service';
 export abstract class ScreeningStore {
   abstract save(record: ScreeningRecord): Promise<ScreeningRecord>;
   abstract findRecent(limit: number): Promise<ScreeningRecord[]>;
+  abstract findRecentByPasien(
+    pasienId: string,
+    limit: number,
+  ): Promise<ScreeningRecord[]>;
   abstract verify(id: string, username: string): Promise<ScreeningRecord>;
 }
 
@@ -23,6 +27,13 @@ export class InMemoryScreeningStore extends ScreeningStore {
 
   async findRecent(limit: number): Promise<ScreeningRecord[]> {
     return this.records.slice(0, limit);
+  }
+
+  async findRecentByPasien(
+    pasienId: string,
+    limit: number,
+  ): Promise<ScreeningRecord[]> {
+    return this.records.filter((r) => r.pasienId === pasienId).slice(0, limit);
   }
 
   async verify(id: string, username: string): Promise<ScreeningRecord> {

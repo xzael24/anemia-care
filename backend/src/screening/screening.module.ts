@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { DB_ENABLED } from '../database';
+import { PasienEntity } from '../pasien/pasien.entity';
 import { MlService } from './ml.service';
 import { ScreeningController } from './screening.controller';
 import { ScreeningEntity } from './screening.entity';
@@ -17,9 +18,12 @@ const storeProvider = {
 @Module({
   imports: [
     AuthModule,
-    ...(DB_ENABLED ? [TypeOrmModule.forFeature([ScreeningEntity])] : []),
+    ...(DB_ENABLED
+      ? [TypeOrmModule.forFeature([ScreeningEntity, PasienEntity])]
+      : []),
   ],
   controllers: [ScreeningController],
   providers: [ScreeningService, MlService, storeProvider],
+  exports: [ScreeningStore],
 })
 export class ScreeningModule {}

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PasienEntity } from '../pasien/pasien.entity';
 import { ScreeningEntity } from './screening.entity';
 import { ScreeningRecord } from './screening.service';
 import { ScreeningStore } from './screening.store';
@@ -25,7 +26,26 @@ export class TypeOrmScreeningStore extends ScreeningStore {
   }
 
   async findRecent(limit: number): Promise<ScreeningRecord[]> {
+    const rows = await this.repo
+      .createQueryBuilder('s')
+      .leftJoinAndMapOne(
+        's.pasien',
+        PasienEntity,
+        'p',
+        'p.id = s."pasienId"',
+      )
+      .orderBy('s."createdAt"', 'DESC')
+      .take(limit)
+      .getMany();
+    return rows.map((r) => this.mapRow(r));
+  }
+
+  async findRecentByPasien(
+    pasienId: string,
+    limit: number,
+  ): Promise<ScreeningRecord[]> {
     const rows = await this.repo.find({
+      where: { pasienId },
       order: { createdAt: 'DESC' },
       take: limit,
     });
@@ -45,6 +65,7 @@ export class TypeOrmScreeningStore extends ScreeningStore {
   }
 
   private mapRow(r: ScreeningEntity): ScreeningRecord {
+    const pasien = (r as ScreeningEntity & { pasien?: PasienEntity }).pasien;
     return {
       id: r.id,
       indication: r.indication,
@@ -53,6 +74,10 @@ export class TypeOrmScreeningStore extends ScreeningStore {
       source: r.source,
       imageName: r.imageName,
       createdAt: r.createdAt.toISOString(),
+      pasienId: r.pasienId,
+      pasien: pasien
+        ? { username: pasien.username, nama: pasien.nama }
+        : null,
       status: r.status,
       verifiedBy: r.verifiedBy,
       verifiedAt: r.verifiedAt ? r.verifiedAt.toISOString() : null,

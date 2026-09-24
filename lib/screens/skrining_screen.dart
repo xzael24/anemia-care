@@ -4,17 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/hasil_skrining.dart';
+import '../models/pasien.dart';
 import '../models/rekomendasi_hasil.dart';
 import '../services/rekomendasi_service.dart';
 import '../services/riwayat_skrining_store.dart';
+import '../services/session_store.dart';
 import '../services/skrining_service.dart';
+import 'akun_screen.dart';
 
 /// Layar skrining anemia dari foto kuku (fitur inti capstone):
 /// pilih foto (kamera/galeri) → POST `/api/screening` → indikasi awal +
 /// confidence + disclaimer → simpan ke riwayat lokal (sqflite) + rekomendasi
-/// tindak lanjut fuzzy (PSC1).
+/// tindak lanjut fuzzy (PSC1). Bila pengguna sudah login akun, skrining ikut
+/// tersimpan per akun di backend dan konteks profil mengisi form rekomendasi.
 ///
-/// Semua dependensi (service, store, picker) bisa di-inject dari test.
+/// Semua dependensi (service, store, picker, session) bisa di-inject dari test.
 class SkriningPage extends StatefulWidget {
   const SkriningPage({
     super.key,
@@ -22,11 +26,13 @@ class SkriningPage extends StatefulWidget {
     this.store,
     this.pickFoto,
     this.rekomendasiService,
+    this.sessionStore,
   });
 
   final SkriningService? service;
   final RiwayatSkriningStore? store;
   final RekomendasiService? rekomendasiService;
+  final SessionStore? sessionStore;
 
   /// Fungsi pemilih foto — default [ImagePicker] (plugin native, tidak bisa
   /// dipakai di widget test).
@@ -49,9 +55,12 @@ class _SkriningPageState extends State<SkriningPage> {
       );
   late final RekomendasiService _rekomendasiService =
       widget.rekomendasiService ?? RekomendasiService();
+  late final SessionStore _sessionStore =
+      widget.sessionStore ?? SessionPrefsStore.instance;
 
   XFile? _foto;
   HasilSkrining? _hasil;
+  Pasien? _pasien;
   String? _error;
   bool _memuat = false;
   List<HasilSkrining> _riwayat = [];
@@ -60,6 +69,14 @@ class _SkriningPageState extends State<SkriningPage> {
   void initState() {
     super.initState();
     _muatRiwayat();
+    _muatSesi();
+  }
+
+  /// Token & profil akun (opsional) — skrining & konteks rekomendasi.
+  Future<void> _muatSesi() async {
+    final sesi = await _sessionStore.muat();
+    if (!mounted) return;
+    setState(() => _pasien = sesi?.pasien);
   }
 
   Future<void> _muatRiwayat() async {
@@ -92,11 +109,18 @@ class _SkriningPageState extends State<SkriningPage> {
       _error = null;
     });
     try {
-      final hasil = await _service.skriningFoto(File(foto.path));
+      final sesi = await _sessionStore.muat();
+      final hasil = await _service.skriningFoto(
+        File(foto.path),
+        token: sesi?.token,
+      );
       await _store.tambah(hasil);
       await _muatRiwayat();
       if (!mounted) return;
-      setState(() => _hasil = hasil);
+      setState(() {
+        _hasil = hasil;
+        _pasien = sesi?.pasien;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
@@ -108,7 +132,21 @@ class _SkriningPageState extends State<SkriningPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Skrining Anemia')),
+      appBar: AppBar(
+        title: const Text('Skrining Anemia'),
+        actions: [
+          // Akun pasien (Tahap 3): daftar/login → skrining & riwayat
+          // tersimpan per akun; profil mengisi konteks rekomendasi fuzzy.
+          IconButton(
+            tooltip: 'Akun Saya',
+            icon: const Icon(Icons.account_circle_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AkunPage()),
+            ),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -157,6 +195,7 @@ class _SkriningPageState extends State<SkriningPage> {
               _RekomendasiCard(
                 hasil: _hasil!,
                 service: _rekomendasiService,
+                pasien: _pasien,
               ),
             ],
             const SizedBox(height: 24),
@@ -431,11 +470,15 @@ class _Kosong extends StatelessWidget {
 /// membuka form konteks singkat → POST /api/rekomendasi → badge tingkat +
 /// label + pesan + skor. Tidak menyimpan ke riwayat (menyusul saat fitur
 /// akun pengguna: konteks & rekomendasi ikut tersimpan per skrining).
+///
+/// [pasien] opsional: profil akun → pre-fill tipe kulit & risiko (hamil,
+/// riwayat anemia) sebagai konteks default.
 class _RekomendasiCard extends StatefulWidget {
-  const _RekomendasiCard({required this.hasil, required this.service});
+  const _RekomendasiCard({required this.hasil, required this.service, this.pasien});
 
   final HasilSkrining hasil;
   final RekomendasiService service;
+  final Pasien? pasien;
 
   @override
   State<_RekomendasiCard> createState() => _RekomendasiCardState();
@@ -443,9 +486,12 @@ class _RekomendasiCard extends StatefulWidget {
 
 class _RekomendasiCardState extends State<_RekomendasiCard> {
   bool _terbuka = false;
-  final Set<String> _gejala = {};
-  final Set<String> _risiko = {};
-  String? _tipeKulit;
+  late final Set<String> _gejala = {};
+  late final Set<String> _risiko = <String>{
+    if (widget.pasien?.hamil ?? false) 'hamil',
+    if (widget.pasien?.riwayatAnemia ?? false) 'riwayat_anemia',
+  };
+  late String? _tipeKulit = widget.pasien?.tipeKulit;
   RekomendasiHasil? _rekomendasi;
   String? _error;
   bool _memuat = false;

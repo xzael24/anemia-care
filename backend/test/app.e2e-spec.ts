@@ -149,4 +149,108 @@ describe('Anemia Care API (e2e)', () => {
     expect(res.body.input).toEqual(['visual', 'gejala', 'risiko']);
     expect(res.body.rules).toHaveLength(12);
   });
+
+  it('/api/pasien daftar + login + me (POST/GET)', async () => {
+    const server = app.getHttpServer();
+    const daftar = await request(server)
+      .post('/api/pasien/daftar')
+      .send({
+        username: 'Sari23',
+        password: 'rahasia123',
+        nama: 'Sari Amalia',
+        usia: 24,
+        gender: 'perempuan',
+        tipeKulit: 'sedang',
+        hamil: true,
+      })
+      .expect(201);
+    expect(daftar.body.accessToken).toBeDefined();
+    expect(daftar.body.pasien).toMatchObject({
+      username: 'sari23',
+      nama: 'Sari Amalia',
+      usia: 24,
+      gender: 'perempuan',
+      tipeKulit: 'sedang',
+      hamil: true,
+    });
+    // DTO validasi: username pendek / password pendek / usia aneh → 400
+    await request(server)
+      .post('/api/pasien/daftar')
+      .send({ username: 'a', password: 'x', nama: 'X', usia: 0, gender: 'x' })
+      .expect(400);
+
+    // Duplikat username → 409
+    await request(server)
+      .post('/api/pasien/daftar')
+      .send({
+        username: 'sari23',
+        password: 'lain123',
+        nama: 'Sari 2',
+        usia: 30,
+        gender: 'perempuan',
+      })
+      .expect(409);
+
+    const login = await request(server)
+      .post('/api/pasien/login')
+      .send({ username: 'sari23', password: 'rahasia123' })
+      .expect(201);
+    expect(login.body.accessToken).toBeDefined();
+
+    await request(server)
+      .post('/api/pasien/login')
+      .send({ username: 'sari23', password: 'salah' })
+      .expect(401);
+
+    // /me: tanpa token 401 · token petugas 403 · token pasien 200
+    await request(server).get('/api/pasien/me').expect(401);
+    await request(server)
+      .get('/api/pasien/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+    const me = await request(server)
+      .get('/api/pasien/me')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(200);
+    expect(me.body.username).toBe('sari23');
+  });
+
+  it('/api/screening dengan token pasien → pasienId terisi + riwayat per akun', async () => {
+    const server = app.getHttpServer();
+    const login = await request(server)
+      .post('/api/pasien/login')
+      .send({ username: 'sari23', password: 'rahasia123' })
+      .expect(201);
+
+    const created = await request(server)
+      .post('/api/screening')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .attach('photo', Buffer.from([1, 2, 3, 4, 5]), {
+        filename: 'kuku.png',
+        contentType: 'image/png',
+      })
+      .expect(201);
+    expect(created.body.pasienId).toBe(login.body.pasien.id);
+
+    // Screening anonim (tanpa token) tetap berjalan, pasienId null.
+    const anonim = await request(server)
+      .post('/api/screening')
+      .attach('photo', Buffer.from([1, 2, 3, 4, 5]), {
+        filename: 'kuku2.png',
+        contentType: 'image/png',
+      })
+      .expect(201);
+    expect(anonim.body.pasienId).toBeNull();
+
+    const riwayat = await request(server)
+      .get('/api/pasien/me/skrining')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(200);
+    expect(Array.isArray(riwayat.body)).toBe(true);
+    expect(riwayat.body.some((r: { id: string }) => r.id === created.body.id)).toBe(true);
+    expect(riwayat.body.some((r: { id: string }) => r.id === anonim.body.id)).toBe(false);
+
+    // Tanpa token pasien → 401 untuk riwayat akun
+    await request(server).get('/api/pasien/me/skrining').expect(401);
+  });
 });

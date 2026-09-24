@@ -26,9 +26,15 @@ class SkriningService {
 
   /// Kirim foto → [HasilSkrining]. Melempar [Exception] dengan pesan ramah
   /// kalau server menolak (400) / gagal (5xx) / tidak terjangkau.
-  Future<HasilSkrining> skriningFoto(File foto) async {
+  ///
+  /// [token] opsional: token pasien (dari sesi akun) membuat skrining
+  /// tersimpan per akun di backend.
+  Future<HasilSkrining> skriningFoto(File foto, {String? token}) async {
     final uri = Uri.parse('$baseUrl/screening');
     final request = http.MultipartRequest('POST', uri)
+      ..headers.addAll(
+        token == null ? const {} : {'Authorization': 'Bearer $token'},
+      )
       ..files.add(
         await http.MultipartFile.fromPath(
           'photo',

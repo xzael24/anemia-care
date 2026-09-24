@@ -13,6 +13,9 @@ export interface ScreeningRecord {
   source: 'ml' | 'mock';
   imageName: string;
   createdAt: string;
+  pasienId: string | null;
+  /** Info pasien (diisi store TypeOrm via join; null jika anonim). */
+  pasien?: { username: string; nama: string } | null;
   status: ScreeningStatus;
   verifiedBy: string | null;
   verifiedAt: string | null;
@@ -31,7 +34,10 @@ export class ScreeningService {
     private readonly store: ScreeningStore,
   ) {}
 
-  async screen(file: Express.Multer.File): Promise<ScreeningRecord> {
+  async screen(
+    file: Express.Multer.File,
+    pasienId: string | null = null,
+  ): Promise<ScreeningRecord> {
     const result: MlResult = await this.ml.predict(file);
     const record: ScreeningRecord = {
       id: randomUUID(),
@@ -41,6 +47,7 @@ export class ScreeningService {
       source: result.source,
       imageName: file.originalname || 'foto.jpg',
       createdAt: new Date().toISOString(),
+      pasienId,
       status: 'baru',
       verifiedBy: null,
       verifiedAt: null,

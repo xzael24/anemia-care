@@ -9,6 +9,7 @@ function fakeDataSource(
     query: async (sql: string) => {
       if (sql.includes('CREATE SCHEMA IF NOT EXISTS dw')) return [];
       if (sql.includes('CREATE OR REPLACE FUNCTION dw.sync_skrining')) return [];
+      if (sql.includes('SELECT DISTINCT pa.username')) return [];
       if (sql.includes('ON CONFLICT (tanggal) DO NOTHING')) return [];
       if (sql.includes('AVG(f.confidence)')) return (answer.summary ?? []) as never;
       if (sql.includes('GROUP BY w.tanggal')) return (answer.trend ?? []) as never;
@@ -44,6 +45,9 @@ describe('DwService', () => {
             verified: 3,
             anemia_rate_pct: '41.7',
             avg_confidence: '0.881',
+            pasien: 3,
+            perempuan: 2,
+            laki: 1,
           },
         ],
       }),
@@ -56,6 +60,9 @@ describe('DwService', () => {
     expect(s.verified).toBe(3);
     expect(s.anemiaRatePct).toBeCloseTo(41.7);
     expect(s.avgConfidence).toBeCloseTo(0.881);
+    expect(s.pasien).toBe(3);
+    expect(s.perempuan).toBe(2);
+    expect(s.laki).toBe(1);
   });
 
   it('summary aman saat belum ada data (baris kosong → nol)', async () => {
@@ -68,6 +75,9 @@ describe('DwService', () => {
       verified: 0,
       anemiaRatePct: null,
       avgConfidence: null,
+      pasien: 0,
+      perempuan: 0,
+      laki: 0,
     });
   });
 
