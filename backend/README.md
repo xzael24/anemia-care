@@ -50,6 +50,8 @@ lalu jalankan backend dengan `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAM
 | PATCH  | `/api/screening/:id/verify` | `admin`/`petugas` | Verifikasi hasil (human-in-the-loop)   |
 | POST   | `/api/auth/login`   | Publik       | Login → `{ accessToken, petugas }` (JWT 8 jam)  |
 | GET    | `/api/auth/me`      | Token        | Info petugas yang login                         |
+| GET    | `/api/dashboard/summary` | `admin`/`petugas` | Ringkasan agregat **Data Warehouse**  |
+| GET    | `/api/dashboard/trend?days=30` | `admin`/`petugas` | Tren harian DW (`days` 1–90, default 30) |
 
 Login contoh:
 
@@ -110,10 +112,27 @@ Sidecar (FastAPI) menerima multipart `file` di `/predict`:
 Materi ML berada di `../capstone/` (mirror dari repo CAPSTONE: dataset, model
 artifacts, skrip training).
 
+## Data Warehouse (LAPISAN 3)
+
+Saat DB aktif, service start otomatis membuat **star schema** di schema `dw`
+(Postgres yang sama) + **trigger ETL real-time**:
+
+- `dw.dim_waktu` — tanggal → tahun/bulan/hari (nama bulan & hari)
+- `dw.dim_hasil` — kombinasi (kelas_hasil, status_verifikasi, sumber)
+- `dw.fact_skrining` — 1 baris per skrining: skrining_id (degenerate),
+  dim_waktu_id, dim_hasil_id, confidence, hb_estimate
+
+ETL berjalan dua arah: **trigger** `AFTER INSERT OR UPDATE` di
+`public.screening` (termasuk saat status verifikasi berubah) + **backfill**
+idempotent saat service start untuk baris lama. Query agregat di-serve lewat
+`/api/dashboard/*` → dirender sebagai bagan tren di web admin
+(`../web_admin/`). `dim_pasien`/`dim_lokasi` menyusul saat fitur akun pengguna
+(usia, gender, tipe kulit, wilayah) masuk.
+
 ## Testing
 
 ```bash
-npm test          # unit: MlService (fallback/deterministik) + AuthService (login)
+npm test          # unit: MlService + AuthService + DwService (parsing agregat DW)
 npm run test:e2e  # e2e: health, validasi screening, auth (401/201/200 + riwayat)
 ```
 
@@ -122,6 +141,7 @@ npm run test:e2e  # e2e: health, validasi screening, auth (401/201/200 + riwayat
 - [x] Sidecar ML FastAPI (RandomForest feature-based, `../ml_service/`)
 - [x] Docker compose (`api` + `ml` + `db`) untuk deploy lokal/VM cloud
 - [x] Persistensi riwayat (Postgres, TypeORM) + auth JWT petugas/admin
-- [ ] Integrasi Flutter app (dio) ke endpoint ini
-- [ ] Web admin dashboard (Flutter web / React)
-- [ ] DW star schema di Postgres yang sama
+- [x] Web admin dashboard (React, verifikasi + **tren Data Warehouse**)
+- [x] DW star schema di Postgres yang sama (ETL trigger + backfill + API agregat)
+- [ ] Fuzzy rekomendasi (PSC1) — setelah konteks pengguna mengalir
+- [ ] Akun pengguna di mobile (riwayat per akun)

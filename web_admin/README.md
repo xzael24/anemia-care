@@ -11,6 +11,8 @@ Dashboard admin untuk memantau hasil skrining anemia dari foto kuku — dibangun
 
 - 🔐 **Login petugas** — `POST /api/auth/login` → JWT disimpan di `localStorage`
 - 📊 **Dashboard** — kartu statistik (total, indikasi anemia/normal, terverifikasi)
+- 📈 **Tren Data Warehouse** — bagan batang 14 hari terakhir dari `GET /api/dashboard/trend`
+  (ETL real-time), + pill "Indikasi anemia: X%" dari `GET /api/dashboard/summary`
 - 🗂️ **Riwayat skrining** — tabel (waktu, foto, indikasi, confidence, sumber, status verifikasi)
   + filter chip (Semua / Anemia / Normal)
 - ✅ **Verifikasi per-skrining** (human-in-the-loop) — `PATCH /api/screening/:id/verify`,
@@ -34,11 +36,11 @@ Credential default dev: `admin` / `admin123`.
 
 ```
 src/
-  api.ts             # client fetch + token (login, screenings, verify)
+  api.ts             # client fetch + token (login, screenings, verify, dashboard DW)
   App.tsx            # switch login ↔ dashboard berdasarkan token
   LoginPage.tsx      # form login petugas
-  DashboardPage.tsx  # statistik + tabel riwayat + verifikasi
-  index.css          # styling (dark topbar, kartu statistik, badge, tabel)
+  DashboardPage.tsx  # statistik + tren DW (bar chart) + tabel riwayat + verifikasi
+  index.css          # styling (dark topbar, kartu statistik, bagan, badge, tabel)
 ```
 
 ## Verifikasi E2E (Sep 2026)

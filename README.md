@@ -26,7 +26,7 @@ Aplikasi ini menggabungkan dua project:
 
 **Status aplikasi:**
 - ✅ **Tahap 1 (Modul 1–15):** app pemantauan + fitur latihan (jadwal, galeri lab, direktori *placeholder*) — APK rilis tersedia
-- 🚧 **Tahap 2 (Capstone):** fitur inti skrining foto kuku **terintegrasi backend** (mobile → NestJS → ML → Postgres → verifikasi web admin). Berikutnya: fuzzy, DW, akun pengguna
+- 🚧 **Tahap 2 (Capstone):** fitur inti skrining foto kuku **terintegrasi backend** (mobile → NestJS → ML → Postgres → verifikasi web admin). **DW aktif** (star schema + tren dashboard). Berikutnya: fuzzy, akun pengguna
 
 ## ✨ Fitur
 
@@ -117,9 +117,9 @@ curl http://192.168.56.101:3000/api/health
 curl -F "photo=@foto_kuku.jpg" http://192.168.56.101:3000/api/screening
 ```
 
-**Terverifikasi (Sep 2026):** container `api` + `ml` + `db` healthy di VM; foto anemic → `source:"ml"`, confidence 0,92 (indikasi anemia); foto non-anemic → FP anemia 0,67 (konsisten spec 0,771). **Persistensi terbukti:** riwayat tersimpan di Postgres & tetap ada setelah `docker compose restart api`. **Auth terbukti:** login → JWT HS256 (8 jam), `GET /api/screening` 401 tanpa token / 200 dengan token. **Web admin terbukti (browser E2E):** login → dashboard (statistik + tabel riwayat) → verifikasi per-skrining → status `terverifikasi` + verifikator tersimpan di Postgres. **Mobile terbukti:** `SkriningService` (Dart, multipart) → `POST /api/screening` 201 `source:"ml"` + disclaimer (smoke e2e di suite test Flutter); 44 test Flutter lulus.
+**Terverifikasi (Sep 2026):** container `api` + `ml` + `db` healthy di VM; foto anemic → `source:"ml"`, confidence 0,92 (indikasi anemia); foto non-anemic → FP anemia 0,67 (konsisten spec 0,771). **Persistensi terbukti:** riwayat tersimpan di Postgres & tetap ada setelah `docker compose restart api`. **Auth terbukti:** login → JWT HS256 (8 jam), `GET /api/screening` 401 tanpa token / 200 dengan token. **Web admin terbukti (browser E2E):** login → dashboard (statistik + tabel riwayat) → verifikasi per-skrining → status `terverifikasi` + verifikator tersimpan di Postgres. **Mobile terbukti:** `SkriningService` (Dart, multipart) → `POST /api/screening` 201 `source:"ml"` + disclaimer (smoke e2e di suite test Flutter); 44 test Flutter lulus. **DW terbukti:** star schema `dw` (dim_waktu/dim_hasil/fact_skrining) di Postgres; ETL trigger real-time (foto baru langsung masuk fact; verifikasi menggeser dim_hasil) + backfill saat start (8 baris lama → 9 fact); `GET /api/dashboard/summary` → `{total:9, anemia:8, normal:1, verified:2, anemiaRatePct:88.9}` & `trend` → `[{tanggal:"2026-09-24",...}]`; 401 tanpa token; web admin menampilkan bar chart tren + pill rate (browser E2E).
 
-> Catatan: tanpa `DB_HOST` (mis. unit test), riwayat & akun disimpan di memori (default aman). **Ganti `JWT_SECRET`/`ADMIN_PASSWORD` di environment produksi!** Langkah berikutnya: DW star schema (dashboard agregat), fuzzy, akun pengguna.
+> Catatan: tanpa `DB_HOST` (mis. unit test), riwayat & akun disimpan di memori (default aman). **Ganti `JWT_SECRET`/`ADMIN_PASSWORD` di environment produksi!** Langkah berikutnya: fuzzy rekomendasi (PSC1), akun pengguna, push milestone ke GitHub.
 
 ## 🔌 API Endpoints
 
@@ -128,6 +128,8 @@ curl -F "photo=@foto_kuku.jpg" http://192.168.56.101:3000/api/screening
 | `POST` | `/api/screening` | Publik | Skrining: upload foto kuku (`photo`) → indikasi awal |
 | `GET` | `/api/screening` | `admin`/`petugas` | Riwayat skrining (terbaru dulu, max 100) |
 | `PATCH` | `/api/screening/:id/verify` | `admin`/`petugas` | Verifikasi hasil oleh petugas (human-in-the-loop) |
+| `GET` | `/api/dashboard/summary` | `admin`/`petugas` | Ringkasan agregat Data Warehouse (total, anemia, rate) |
+| `GET` | `/api/dashboard/trend?days=14` | `admin`/`petugas` | Tren harian dari DW (`days` 1–90, default 30) |
 | `POST` | `/api/auth/login` | Publik | Login petugas → `{ accessToken, petugas }` |
 | `GET` | `/api/auth/me` | Token | Info petugas yang login |
 | `GET` | `/api/health` | Publik | Health check (Terminus) |

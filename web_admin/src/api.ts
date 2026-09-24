@@ -18,6 +18,23 @@ export interface Petugas {
   role: string;
 }
 
+/** Lapisan 3 — Data Warehouse (ETL real-time dari tabel skrining). */
+export interface DwSummary {
+  total: number;
+  anemia: number;
+  normal: number;
+  verified: number;
+  anemiaRatePct: number | null;
+  avgConfidence: number | null;
+}
+
+export interface DwTrendPoint {
+  tanggal: string; // 'YYYY-MM-DD'
+  total: number;
+  anemia: number;
+  normal: number;
+}
+
 const API_BASE: string =
   (import.meta.env.VITE_API_URL as string | undefined) ??
   'http://localhost:3000/api';
@@ -66,4 +83,7 @@ export const api = {
   screenings: () => request<Screening[]>('/screening'),
   verify: (id: string) =>
     request<Screening>(`/screening/${id}/verify`, { method: 'PATCH' }),
+  dwSummary: () => request<DwSummary>('/dashboard/summary'),
+  dwTrend: (days = 14) =>
+    request<DwTrendPoint[]>(`/dashboard/trend?days=${days}`),
 };

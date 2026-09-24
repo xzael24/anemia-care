@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from './api';
-import type { Screening } from './api';
+import type { DwSummary, DwTrendPoint, Screening } from './api';
 
 interface Props {
   onLogout: () => void;
@@ -14,12 +14,19 @@ const fmtTime = (iso: string) =>
     timeStyle: 'short',
   });
 
+const TREND_DAYS = 14;
+
 export default function DashboardPage({ onLogout }: Props) {
   const [rows, setRows] = useState<Screening[]>([]);
   const [filter, setFilter] = useState<Filter>('semua');
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [dw, setDw] = useState<{
+    summary: DwSummary;
+    trend: DwTrendPoint[];
+  } | null>(null);
+  const [dwError, setDwError] = useState('');
 
   async function load() {
     setLoadError('');
@@ -30,8 +37,22 @@ export default function DashboardPage({ onLogout }: Props) {
     }
   }
 
+  async function loadDw() {
+    setDwError('');
+    try {
+      const [summary, trend] = await Promise.all([
+        api.dwSummary(),
+        api.dwTrend(TREND_DAYS),
+      ]);
+      setDw({ summary, trend });
+    } catch (err) {
+      setDwError(err instanceof Error ? err.message : 'DW tidak tersedia');
+    }
+  }
+
   useEffect(() => {
     void load();
+    void loadDw();
   }, []);
 
   async function verify(id: string) {
@@ -40,6 +61,7 @@ export default function DashboardPage({ onLogout }: Props) {
     try {
       const updated = await api.verify(id);
       setRows((prev) => prev.map((r) => (r.id === id ? updated : r)));
+      void loadDw(); // status verifikasi ikut ter-ETL ke DW (trigger)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verifikasi gagal');
     } finally {
@@ -92,6 +114,84 @@ export default function DashboardPage({ onLogout }: Props) {
             <div className="stat-num">{stats.verified}</div>
             <div className="stat-label">Terverifikasi</div>
           </div>
+        </section>
+
+        <section className="card dw-card">
+          <div className="dw-head">
+            <div>
+              <h2>Tren Skrining · {TREND_DAYS} Hari</h2>
+              <p className="muted">
+                Sumber: Data Warehouse (ETL real-time dari tabel skrining)
+              </p>
+            </div>
+            {dw && (
+              <div className="dw-meta">
+                <span className="dw-rate">
+                  Indikasi anemia:{' '}
+                  {dw.summary.anemiaRatePct == null
+                    ? '—'
+                    : `${dw.summary.anemiaRatePct}%`}
+                </span>
+                <span className="dw-leg">
+                  <i className="dot dot-anemia" /> anemia
+                  <i className="dot dot-normal" /> normal
+                </span>
+              </div>
+            )}
+          </div>
+
+          {dw && dw.trend.length > 0 ? (
+            <div
+              className="bars"
+              role="img"
+              aria-label={`Grafik batang tren skrining ${dw.trend.length} hari terakhir`}
+            >
+              {dw.trend.map((p) => {
+                const max = Math.max(...dw.trend.map((x) => x.total), 1);
+                const hAnemia = Math.round((p.anemia / max) * 100);
+                const hNormal = Math.round((p.normal / max) * 100);
+                return (
+                  <div
+                    className="bar-col"
+                    key={p.tanggal}
+                    title={`${p.tanggal}: ${p.total} skrining (${p.anemia} anemia, ${p.normal} normal)`}
+                  >
+                    <div className="bar-total">{p.total > 0 ? p.total : ''}</div>
+                    <div className="bar-track">
+                      {hAnemia > 0 && (
+                        <div
+                          className="bar-seg bar-anemia"
+                          style={{ height: `${hAnemia}%` }}
+                        />
+                      )}
+                      {hNormal > 0 && (
+                        <div
+                          className={
+                            hAnemia > 0
+                              ? 'bar-seg bar-normal bar-top'
+                              : 'bar-seg bar-normal'
+                          }
+                          style={{ height: `${hNormal}%` }}
+                        />
+                      )}
+                    </div>
+                    <div className="bar-label">
+                      {Number(p.tanggal.slice(8, 10))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : dw ? (
+            <p className="empty">
+              Belum ada data DW untuk tren. Data muncul setelah skrining
+              pertama dikirim.
+            </p>
+          ) : (
+            <p className="muted">
+              Data Warehouse tidak tersedia: {dwError || 'belum dimuat'}.
+            </p>
+          )}
         </section>
 
         <section className="card table-card">
