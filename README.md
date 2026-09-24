@@ -112,9 +112,21 @@ curl http://192.168.56.101:3000/api/health
 curl -F "photo=@foto_kuku.jpg" http://192.168.56.101:3000/api/screening
 ```
 
-**Terverifikasi (Sep 2026):** container `api` + `ml` + `db` healthy di VM; foto anemic → `source:"ml"`, confidence 0,92 (indikasi anemia); foto non-anemic → FP anemia 0,67 (konsisten spec 0,771). **Persistensi terbukti:** riwayat tersimpan di Postgres & tetap ada setelah `docker compose restart api`.
+**Terverifikasi (Sep 2026):** container `api` + `ml` + `db` healthy di VM; foto anemic → `source:"ml"`, confidence 0,92 (indikasi anemia); foto non-anemic → FP anemia 0,67 (konsisten spec 0,771). **Persistensi terbukti:** riwayat tersimpan di Postgres & tetap ada setelah `docker compose restart api`. **Auth terbukti:** login → JWT HS256 (8 jam), `GET /api/screening` 401 tanpa token / 200 dengan token.
 
-> Catatan: tanpa `DB_HOST` (mis. unit test), riwayat disimpan di memori (default aman). Langkah berikutnya: auth JWT, web admin, dan integrasi Flutter (`dio`).
+> Catatan: tanpa `DB_HOST` (mis. unit test), riwayat & akun disimpan di memori (default aman). **Ganti `JWT_SECRET`/`ADMIN_PASSWORD` di environment produksi!** Langkah berikutnya: web admin (dashboard), integrasi Flutter (`dio`), DW star schema.
+
+## 🔌 API Endpoints
+
+| Method | Endpoint | Akses | Fungsi |
+|---|---|---|---|
+| `POST` | `/api/screening` | Publik | Skrining: upload foto kuku (`photo`) → indikasi awal |
+| `GET` | `/api/screening` | `admin`/`petugas` | Riwayat skrining (terbaru dulu, max 100) |
+| `POST` | `/api/auth/login` | Publik | Login petugas → `{ accessToken, petugas }` |
+| `GET` | `/api/auth/me` | Token | Info petugas yang login |
+| `GET` | `/api/health` | Publik | Health check (Terminus) |
+
+Credential default dev: `admin` / `admin123` (seed otomatis saat tabel `petugas` kosong).
 
 ## 🏗️ Teknologi
 

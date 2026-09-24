@@ -4,9 +4,13 @@ import {
   Get,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import {
   DISCLAIMER,
   ScreeningRecord,
@@ -30,7 +34,10 @@ export class ScreeningController {
     return { ...record, disclaimer: DISCLAIMER };
   }
 
+  /** Riwayat skrining = area petugas/admin (login dulu). */
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'petugas')
   async history(): Promise<ScreeningRecord[]> {
     return this.screenings.history();
   }
