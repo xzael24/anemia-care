@@ -97,4 +97,56 @@ describe('Anemia Care API (e2e)', () => {
       .patch(`/api/screening/${createdId}/verify`)
       .expect(401);
   });
+
+  it('/api/rekomendasi (POST) valid: normal tanpa konteks -> rendah', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/rekomendasi')
+      .send({ indication: 'normal', confidence: 0.9 })
+      .expect(201);
+    expect(res.body).toMatchObject({
+      tingkat: 'rendah',
+      label: expect.stringContaining('pola makan'),
+      skor: expect.objectContaining({ visual: expect.any(Number) }),
+    });
+    expect(Array.isArray(res.body.aturanAktif)).toBe(true);
+    expect(res.body.disclaimer).toContain('BUKAN pengganti tenaga kesehatan');
+  });
+
+  it('/api/rekomendasi (POST) valid: anemia + hamil + gejala -> tinggi', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/rekomendasi')
+      .send({
+        indication: 'anemia',
+        confidence: 0.92,
+        gejala: ['pusing', 'lemas'],
+        risiko: ['hamil'],
+        tipeKulit: 'gelap',
+      })
+      .expect(201);
+    expect(res.body.tingkat).toBe('tinggi');
+    expect(res.body.label).toContain('puskesmas');
+    expect(res.body.emoji).toBe('🔴');
+  });
+
+  it('/api/rekomendasi (POST) confidence di luar 0..1 -> 400', () => {
+    return request(app.getHttpServer())
+      .post('/api/rekomendasi')
+      .send({ indication: 'anemia', confidence: 1.5 })
+      .expect(400);
+  });
+
+  it('/api/rekomendasi (POST) gejala tidak dikenal -> 400', () => {
+    return request(app.getHttpServer())
+      .post('/api/rekomendasi')
+      .send({ indication: 'anemia', confidence: 0.5, gejala: ['flu'] })
+      .expect(400);
+  });
+
+  it('/api/rekomendasi/aturan (GET) -> 12 rule Mamdani', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/rekomendasi/aturan')
+      .expect(200);
+    expect(res.body.input).toEqual(['visual', 'gejala', 'risiko']);
+    expect(res.body.rules).toHaveLength(12);
+  });
 });

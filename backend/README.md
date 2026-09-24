@@ -52,6 +52,8 @@ lalu jalankan backend dengan `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAM
 | GET    | `/api/auth/me`      | Token        | Info petugas yang login                         |
 | GET    | `/api/dashboard/summary` | `admin`/`petugas` | Ringkasan agregat **Data Warehouse**  |
 | GET    | `/api/dashboard/trend?days=30` | `admin`/`petugas` | Tren harian DW (`days` 1–90, default 30) |
+| POST   | `/api/rekomendasi`   | Publik       | Fuzzy (PSC1): visual + gejala/risiko/tipe kulit → rekomendasi |
+| GET    | `/api/rekomendasi/aturan` | Publik   | Tabel 12 rule Mamdani (dokumentasi diri)          |
 
 Login contoh:
 
@@ -129,11 +131,26 @@ idempotent saat service start untuk baris lama. Query agregat di-serve lewat
 (`../web_admin/`). `dim_pasien`/`dim_lokasi` menyusul saat fitur akun pengguna
 (usia, gender, tipe kulit, wilayah) masuk.
 
+## Fuzzy Rekomendasi (PSC1)
+
+Mesin **Mamdani murni TypeScript** (tanpa dependensi) di `src/fuzzy/` —
+fuzzifikasi (trapesium/segitiga), inferensi max–min 12 rule, agregasi
+clip-then-max, defuzzifikasi centroid. Input crisp 0..1:
+
+- `visual` — kekuatan indikasi ML (anemia → confidence; normal → 1−confidence),
+  dinaikkan bila estimasi Hb < 12 g/dL atau tipe kulit gelap (sensitivitas)
+- `gejala` — pusing/lemas/berkunang/pucat/sesak (masing-masing +0,2)
+- `risiko` — menstruasi/hamil/riwayat anemia/kurang zat besi (masing-masing +0,25)
+
+Output 3 tingkat (ambang 0,34 / 0,67): 🟢 pola makan sehat · 🟡 asupan zat
+besi + cek darah · 🔴 segera periksa ke puskesmas/dokter. Semua rule & label
+selaras KONSEP §11. Kontrak respon & daftar rule: `GET /api/rekomendasi/aturan`.
+
 ## Testing
 
 ```bash
-npm test          # unit: MlService + AuthService + DwService (parsing agregat DW)
-npm run test:e2e  # e2e: health, validasi screening, auth (401/201/200 + riwayat)
+npm test          # unit: MlService + AuthService + DwService + FuzzyService (10)
+npm run test:e2e  # e2e: health, screening, auth, DW-off, rekomendasi (5 baru)
 ```
 
 ## Roadmap (belum dikerjakan)
@@ -143,5 +160,5 @@ npm run test:e2e  # e2e: health, validasi screening, auth (401/201/200 + riwayat
 - [x] Persistensi riwayat (Postgres, TypeORM) + auth JWT petugas/admin
 - [x] Web admin dashboard (React, verifikasi + **tren Data Warehouse**)
 - [x] DW star schema di Postgres yang sama (ETL trigger + backfill + API agregat)
-- [ ] Fuzzy rekomendasi (PSC1) — setelah konteks pengguna mengalir
-- [ ] Akun pengguna di mobile (riwayat per akun)
+- [x] Fuzzy rekomendasi (PSC1) — Mamdani in-process + form konteks di mobile
+- [ ] Akun pengguna di mobile (riwayat per akun — konteks & rekomendasi ikut tersimpan)

@@ -4,19 +4,29 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/hasil_skrining.dart';
+import '../models/rekomendasi_hasil.dart';
+import '../services/rekomendasi_service.dart';
 import '../services/riwayat_skrining_store.dart';
 import '../services/skrining_service.dart';
 
 /// Layar skrining anemia dari foto kuku (fitur inti capstone):
 /// pilih foto (kamera/galeri) → POST `/api/screening` → indikasi awal +
-/// confidence + disclaimer → simpan ke riwayat lokal (sqflite).
+/// confidence + disclaimer → simpan ke riwayat lokal (sqflite) + rekomendasi
+/// tindak lanjut fuzzy (PSC1).
 ///
 /// Semua dependensi (service, store, picker) bisa di-inject dari test.
 class SkriningPage extends StatefulWidget {
-  const SkriningPage({super.key, this.service, this.store, this.pickFoto});
+  const SkriningPage({
+    super.key,
+    this.service,
+    this.store,
+    this.pickFoto,
+    this.rekomendasiService,
+  });
 
   final SkriningService? service;
   final RiwayatSkriningStore? store;
+  final RekomendasiService? rekomendasiService;
 
   /// Fungsi pemilih foto — default [ImagePicker] (plugin native, tidak bisa
   /// dipakai di widget test).
@@ -37,6 +47,8 @@ class _SkriningPageState extends State<SkriningPage> {
         maxWidth: 1200,
         imageQuality: 80,
       );
+  late final RekomendasiService _rekomendasiService =
+      widget.rekomendasiService ?? RekomendasiService();
 
   XFile? _foto;
   HasilSkrining? _hasil;
@@ -139,7 +151,14 @@ class _SkriningPageState extends State<SkriningPage> {
             ),
             const SizedBox(height: 20),
             if (_error != null) _ErrorBox(pesan: _error!),
-            if (_hasil != null) _HasilCard(hasil: _hasil!),
+            if (_hasil != null) ...[
+              _HasilCard(hasil: _hasil!),
+              const SizedBox(height: 12),
+              _RekomendasiCard(
+                hasil: _hasil!,
+                service: _rekomendasiService,
+              ),
+            ],
             const SizedBox(height: 24),
             _judulBagian('Riwayat Terakhir (perangkat)'),
             const SizedBox(height: 8),
@@ -404,6 +423,270 @@ class _Kosong extends StatelessWidget {
         textAlign: TextAlign.center,
         style: TextStyle(color: Colors.grey.shade600),
       ),
+    );
+  }
+}
+
+/// Rekomendasi tindak lanjut (fuzzy, PSC1) — tertutup default (tombol),
+/// membuka form konteks singkat → POST /api/rekomendasi → badge tingkat +
+/// label + pesan + skor. Tidak menyimpan ke riwayat (menyusul saat fitur
+/// akun pengguna: konteks & rekomendasi ikut tersimpan per skrining).
+class _RekomendasiCard extends StatefulWidget {
+  const _RekomendasiCard({required this.hasil, required this.service});
+
+  final HasilSkrining hasil;
+  final RekomendasiService service;
+
+  @override
+  State<_RekomendasiCard> createState() => _RekomendasiCardState();
+}
+
+class _RekomendasiCardState extends State<_RekomendasiCard> {
+  bool _terbuka = false;
+  final Set<String> _gejala = {};
+  final Set<String> _risiko = {};
+  String? _tipeKulit;
+  RekomendasiHasil? _rekomendasi;
+  String? _error;
+  bool _memuat = false;
+
+  Future<void> _hitung() async {
+    setState(() {
+      _memuat = true;
+      _error = null;
+    });
+    try {
+      final r = await widget.service.rekomendasi(
+        indication: widget.hasil.indication,
+        confidence: widget.hasil.confidence,
+        hbEstimateGdl: widget.hasil.hbEstimateGdl,
+        gejala: _gejala.toList(),
+        risiko: _risiko.toList(),
+        tipeKulit: _tipeKulit,
+      );
+      if (!mounted) return;
+      setState(() => _rekomendasi = r);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _memuat = false);
+    }
+  }
+
+  Color _warnaTingkat(String tingkat) {
+    switch (tingkat) {
+      case 'tinggi':
+        return Colors.red.shade700;
+      case 'sedang':
+        return Colors.amber.shade800;
+      default:
+        return Colors.teal.shade700;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_terbuka) {
+      return Card(
+        child: ListTile(
+          leading: const Icon(Icons.psychology_outlined, color: Colors.indigo),
+          title: const Text(
+            'Rekomendasi tindak lanjut (fuzzy)',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: const Text(
+            'Gabung hasil visual + gejala & risiko → tindak lanjut personal (PSC1)',
+            style: TextStyle(fontSize: 12),
+          ),
+          trailing: const Icon(Icons.expand_more),
+          onTap: () => setState(() => _terbuka = true),
+        ),
+      );
+    }
+
+    if (_rekomendasi != null) {
+      final r = _rekomendasi!;
+      final warna = _warnaTingkat(r.tingkat);
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(r.emoji, style: const TextStyle(fontSize: 28)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      r.label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: warna,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(r.pesan, style: const TextStyle(fontSize: 13)),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  _SkorChip(label: 'Visual ${(r.skorVisual * 100).round()}%'),
+                  _SkorChip(label: 'Gejala ${(r.skorGejala * 100).round()}%'),
+                  _SkorChip(label: 'Risiko ${(r.skorRisiko * 100).round()}%'),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: Text(
+                  '⚠️ ${r.disclaimer}',
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => setState(() => _rekomendasi = null),
+                  child: const Text('Ubah jawaban'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Form konteks
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Rekomendasi tindak lanjut (fuzzy)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Jawab singkat — hasil visual ${widget.hasil.anemia ? 'mengarah anemia' : 'normal'} '
+              'digabung konteks untuk menentukan tindak lanjut.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Gejala yang dirasakan',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            ...RekomendasiService.gejalaOptions.entries.map((e) {
+              final kode = e.key;
+              final label = e.value;
+              return CheckboxListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(label, style: const TextStyle(fontSize: 13)),
+                value: _gejala.contains(kode),
+                onChanged: (v) => setState(() {
+                  if (v == true) {
+                    _gejala.add(kode);
+                  } else {
+                    _gejala.remove(kode);
+                  }
+                }),
+              );
+            }),
+            const SizedBox(height: 8),
+            const Text(
+              'Faktor risiko',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            ...RekomendasiService.risikoOptions.entries.map((e) {
+              final kode = e.key;
+              final label = e.value;
+              return CheckboxListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(label, style: const TextStyle(fontSize: 13)),
+                value: _risiko.contains(kode),
+                onChanged: (v) => setState(() {
+                  if (v == true) {
+                    _risiko.add(kode);
+                  } else {
+                    _risiko.remove(kode);
+                  }
+                }),
+              );
+            }),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _tipeKulit,
+              decoration: const InputDecoration(
+                labelText: 'Tipe kulit (opsional)',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              items: RekomendasiService.kulitOptions.entries
+                  .map(
+                    (e) => DropdownMenuItem(
+                      value: e.key,
+                      child: Text(e.value),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) => setState(() => _tipeKulit = v),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              _ErrorBox(pesan: _error!),
+            ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _memuat ? null : _hitung,
+              icon: _memuat
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.psychology),
+              label: Text(_memuat ? 'Menghitung…' : 'Hitung Rekomendasi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SkorChip extends StatelessWidget {
+  const _SkorChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.indigo.shade50,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 12)),
     );
   }
 }
