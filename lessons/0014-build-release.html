@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 014 — Build APK &amp; AAB (Release)</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 014 · Modul 14 · Build Aplikasi untuk Release — APK &amp; AAB</p>
+<h1>Anemia Care sekarang punya identitas rilis: nama, ikon, splash &amp; tanda tangan 🔏</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/build-release.html">Modul 14: Build APK &amp; AAB</a>.</p>
+
+<p>Cara dosen: pakai project lama (<code>flutter_widget_dasar</code>) yang udah matang. Kita: pakai project anemia sendiri (per keputusan awal: satu project berkembang). Yang dikerjakan: <strong>nama aplikasi, Application ID, ikon + adaptive icon, splash screen native, keystore upload + signing config</strong>, lalu (percobaan) build APK.</p>
+
+<h2>APK vs AAB</h2>
+<table>
+<tr><th></th><th>APK</th><th>AAB (Android App Bundle)</th></tr>
+<tr><td>Isi</td><td>Semua arsitektur CPU &amp; resolusi dalam 1 file</td><td>Resources modular; Play Store bikin APK ramping per device</td></tr>
+<tr><td>Ukuran</td><td>Besar</td><td>Optimasi otomatis → lebih kecil</td></tr>
+<tr><td>Kegunaan</td><td>Install langsung / side-load / testing internal</td><td><strong>Wajib</strong> untuk Play Store (sejak Agu 2021)</td></tr>
+</table>
+
+<h2>1. Nama aplikasi</h2>
+<p><code>android/app/src/main/AndroidManifest.xml</code> → <code>android:label="Anemia Care"</code> (sebelumnya <code>"anemia"</code> — huruf kecil semua, kurang proper buat home screen).</p>
+
+<h2>2. Application ID (yang NGGK bisa diubah lagi!)</h2>
+<pre><code>// android/app/build.gradle.kts
+defaultConfig {
+    applicationId = "id.anemiacare.app"   // ganti com.example (tanpa reverse-domain)!
+    versionCode = flutter.versionCode      // dari pubspec: 1
+    versionName = flutter.versionName      // dari pubspec: 1.0.0
+}</code></pre>
+<p>Format reverse-domain (<code>com.perusahaan.app</code>). <strong>ID ini tidak bisa diubah setelah pertama kali di-publish</strong> — jadi <code>id.anemiacare.app</code> masih placeholder: sebelum upload ke Play Store, ganti ke domain yang beneran lo punya. Catatan: <code>namespace</code> sengaja tetap <code>com.example.anemia</code> (internal, nggak berpengaruh ke Play Store) — menghindari pindah-pindah file MainActivity yang nggak perlu.</p>
+
+<h2>3. Ikon &amp; adaptive icon — digenerate, bukan didesign 🎨</h2>
+<p>Tantangan: nggak ada designer &amp; nggak ada asset ikon. Solusi jujur: <strong>ikon digenerate programmatically</strong> lewat <code>tool/gen_icon.dart</code> — script Dart murni yang menggambar droplet merah (darah = identitas anemia) di background gradient pink muda, dengan <strong>PNG encoder sendiri</strong> (zlib dari <code>dart:io</code> + CRC32 manual) + supersampling 2×2 buat anti-aliasing. Nggak pakai dependency image processing sama sekali.</p>
+<pre><code>$ dart run tool/gen_icon.dart
+# → assets/icon/icon.png (1024, launcher) &amp; assets/icon/splash_logo.png (512, transparan)</code></pre>
+<p>Lalu tool resmi Flutter:</p>
+<pre><code>$ dart run flutter_launcher_icons    # generate mipmap + adaptive icon dari icon.png
+$ dart run flutter_native_splash:create  # splash native (termasuk Android 12/v31)</code></pre>
+<p>Bug nyata yang ketemu: CRC PNG ditulis sebelum data → ikon akhirnya nggak bisa di-decode. Fix urutan chunk. Pelajaran: kalau bikin binary format sendiri, selalu verifikasi dengan decoder sungguhan (di sini: <code>package:image</code> lewat flutter_launcher_icons).</p>
+
+<h2>4. Keystore &amp; signing config</h2>
+<pre><code>// Generate keystore upload (RSA 2048, valid 10000 hari = 27 tahun)
+$ keytool -genkeypair -v -keystore android/app/upload-keystore.jks \
+    -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
+    -storepass XXXXX -keypass XXXXX -dname "CN=Anemia Care, ..."</code></pre>
+<ul>
+<li><code>android/key.properties</code> — kredensial (storePassword, keyPassword, keyAlias, storeFile). <strong>JANGAN di-commit</strong> → masuk <code>.gitignore</code> (sama kayak *.jks).</li>
+<li><code>build.gradle.kts</code> — load <code>key.properties</code> → <code>signingConfigs.create("release")</code> → release pakai keystore upload. Fallback ke debug key kalau key.properties belum ada (proyek baru/klonan nggak error).</li>
+</ul>
+<pre><code>buildTypes {
+    release {
+        signingConfig = if (keystorePropertiesFile.exists()) {
+            signingConfigs.getByName("release")
+        } else signingConfigs.getByName("debug")
+    }
+}</code></pre>
+
+<h2>5. Versioning</h2>
+<p>Version udah benar dari template: <code>version: 1.0.0+1</code> (versionName 1.0.0, versionCode 1) di pubspec.yaml → diteruskan ke gradle otomatis.</p>
+
+<h2>6. Build — hasil nyata (sukses semua!) 🎯</h2>
+<p>Ternyata RAM cukup (IDE/browser ditutup + setting memori gradle M11): gradle jalan mulus di background. Ini yang berhasil:</p>
+<table>
+<tr><th>Perintah</th><th>Output</th><th>Ukuran</th><th>Waktu</th></tr>
+<tr><td><code>flutter build apk --debug</code></td><td><code>app-debug.apk</code></td><td>150.72 MB</td><td>206s</td></tr>
+<tr><td><code>flutter build apk --release</code></td><td><code>app-release.apk</code></td><td><strong>50.4 MB</strong></td><td>476s</td></tr>
+<tr><td><code>flutter build appbundle --release</code></td><td><code>app-release.aab</code></td><td><strong>49.4 MB</strong></td><td>109s</td></tr>
+<tr><td><code>flutter build apk --release --split-per-abi</code></td><td>app-<i>abi</i>-release.apk</td><td>arm64 17.8MB · v7a 15.3MB · x86_64 19.2MB</td><td>184s</td></tr>
+</table>
+<p>Kontras ukuran menarik: universal release <strong>50.4MB</strong> vs split arm64 <strong>17.8MB</strong> (≈65% lebih kecil) — dalangnya: split cuma bawa 1 arsitektur CPU. Inilah yang Play Store lakukan otomatis dari AAB buat tiap device.</p>
+<p>Detail menarik: font <strong>tree-shaken</strong> di release — MaterialIcons 1,645,184 → 5,752 byte (<strong>99.7%</strong> berkurang).</p>
+<p><strong>Verifikasi jujur dari dalam file:</strong></p>
+<pre><code>$ aapt dump badging app-release.apk
+package: name='id.anemiacare.app' versionCode='1' versionName='1.0.0'
+application-label:'Anemia Care'
+
+$ apksigner verify --print-certs app-release.apk
+Signer #1 certificate DN: CN=Anemia Care, OU=Mobile Programming, O=Student, ...
+    → ditandatangani keystore UPLOAD kita, bukan debug key ✅</code></pre>
+
+<h2>Catatan build &amp; best practices</h2>
+<ul>
+<li><strong>Debug APK itu gemuk</strong> (150MB): semua ABI + debug runtime. Release jauh lebih kecil — bedanya signifikan.</li>
+<li>Build berturut-turut makin cepat (cache gradle/kotlin). AAB 109s vs APK release 476s.</li>
+<li>Bonus dosen <code>--obfuscate --split-debug-info</code>: minify R8 udah aktif otomatis di release Flutter; obfuscate optional — dipelajari sebagai teori (butuh keep rule untuk reflection; app kita nggak ada reflection).</li>
+</ul>
+
+<h2>Tantangan dosen → status</h2>
+<table>
+<tr><th>Tantangan</th><th>Status</th><th>Catatan</th></tr>
+<tr><td>1. Ganti nama app, applicationId, ikon, splash</td><td>✅</td><td>Nama "Anemia Care", ID placeholder `id.anemiacare.app`, ikon &amp; splash digenerate programmatic</td></tr>
+<tr><td>2. Keystore upload + signing config</td><td>✅</td><td>upload-keystore.jks (RSA 2048, 10000 hari) + key.properties + build.gradle.kts (fallback debug)</td></tr>
+<tr><td>3. Universal APK + split arm64 + AAB + ukuran</td><td>✅</td><td>Release 50.4MB · AAB 49.4MB · split arm64 17.8MB — semua terverifikasi (aapt + apksigner)</td></tr>
+<tr><td>4. Install di HP</td><td>⏳</td><td>Buatnya di sesi user (emulator/fisik + `flutter install`), seperti M2/M12</td></tr>
+<tr><td>5. Bonus obfuscate + split-debug-info</td><td>📝</td><td>Dipelajari dari materi; minify release udah default dari Flutter</td></tr>
+</table>
+
+<h2>File yang berubah</h2>
+<table>
+<tr><th>File</th><th>Isi</th></tr>
+<tr><td><code>android/app/src/main/AndroidManifest.xml</code></td><td>label → "Anemia Care"</td></tr>
+<tr><td><code>android/app/build.gradle.kts</code></td><td>applicationId <code>id.anemiacare.app</code>, signingConfigs release + fallback</td></tr>
+<tr><td><code>android/app/upload-keystore.jks</code></td><td>Keystore upload (RAHASIA, digenerate keytool)</td></tr>
+<tr><td><code>android/key.properties</code></td><td>Kredensial signing (RAHASIA)</td></tr>
+<tr><td><code>.gitignore</code></td><td>+ <code>android/key.properties</code>, <code>android/app/*.jks</code></td></tr>
+<tr><td><code>tool/gen_icon.dart</code></td><td>Generator ikon: droplet PNG murni (zlib+CRC32) supersampled</td></tr>
+<tr><td><code>assets/icon/icon.png</code>, <code>splash_logo.png</code></td><td>Hasil generate</td></tr>
+<tr><td><code>pubspec.yaml</code></td><td>+dev flutter_launcher_icons &amp; flutter_native_splash + config bawaan</td></tr>
+<tr><td><code>android/app/src/main/res/...</code></td><td>mipmap ikon semua density + launch_background + styles (v31) oleh kedua tool</td></tr>
+</table>
+
+<h2>Tugas praktik</h2>
+<ol>
+<li>Cek hasil build di folder <code>build/app/outputs/</code>.</li>
+<li>Buka Play Console mindset: applicationId harus diganti ke domain lo sebelum publish (M15).</li>
+<li>Main <code>flutter analyze</code> &amp; <code>flutter test --concurrency=1</code> (35 test hijau).</li>
+<li>Kalau kepo: buka <code>tool/gen_icon.dart</code> — ganti warna/posisi droplet, jalanin ulang, regenerate ikon.</li>
+</ol>
+
+<blockquote>Catatan jujur: keystore &amp; password tersimpan lokal (key.properties) — kalau file itu hilang, app nggak bisa di-update lagi di Play Store. Backup ke tempat aman (bukan repo!). Ini bukan hal yang bisa di-skip: tanpa tanda tangan, APK release nggak ada gunanya.</blockquote>
+
+<div class="quiz" id="q1">
+<h3>Q1: Format distribusi yang WAJIB untuk Play Store…</h3>
+<button class="opt" data-q="q1" data-correct="true">AAB (Android App Bundle)</button>
+<button class="opt" data-q="q1">APK universal</button>
+<button class="opt" data-q="q1">APK split per-ABI</button>
+<p class="explain">Play Store mewajibkan AAB sejak Agustus 2021 — Play yang ngebikin APK ramping per device.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Application ID boleh diubah kapan aja?</h3>
+<button class="opt" data-q="q2" data-correct="true">Nggak — setelah publish pertama, ID nggak bisa diganti</button>
+<button class="opt" data-q="q2">Boleh, di build berikutnya</button>
+<button class="opt" data-q="q2">Boleh, asal versi naik</button>
+<p class="explain">Itu sebabnya pakai reverse-domain beneran, bukan com.example (yang jadi placeholder di project kita).</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Keystore upload &amp; key.properties sebaiknya…</h3>
+<button class="opt" data-q="q3" data-correct="true">Di-backup aman, JANGAN di-commit ke repo</button>
+<button class="opt" data-q="q3">Di-commit biar tim bisa ikut release</button>
+<button class="opt" data-q="q3">Di-delete setelah build pertama</button>
+<p class="explain">Keystore hilang = nggak bisa update app di Play Store selamanya. Gitignore udah dilindungin.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Ikon app digenerate dari…</h3>
+<button class="opt" data-q="q4" data-correct="true">Script Dart murni (tool/gen_icon.dart) dengan PNG encoder sendiri</button>
+<button class="opt" data-q="q4">Photoshop/Figma manual</button>
+<button class="opt" data-q="q4">Icon bawaan Flutter template</button>
+<p class="explain">Tanpa designer &amp; tool desain: droplet merah digambar matematis + encoding PNG manual (zlib + CRC32).</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Signing config release di build.gradle pakai…</h3>
+<button class="opt" data-q="q5" data-correct="true">Keystore upload dari key.properties, fallback ke debug key kalau file belum ada</button>
+<button class="opt" data-q="q5">Selalu debug key</button>
+<button class="opt" data-q="q5">Nggak ditandatangani sama sekali</button>
+<p class="explain">Release APK wajib tanda tangan non-debug; fallback bikin proyek klonanan tetap bisa build tanpa error.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://docs.flutter.dev/deployment/android">Flutter: Build and release an Android app</a> (keystore, signing, obfuscate, ukuran APK), <a href="https://developer.android.com/studio/publish/app-signing">Android: App signing</a> (upload key + Play App Signing), dan panduan pembeda APK/AAB di <a href="https://developer.android.com/guide/app-bundle">Android: Android App Bundle</a>. Alat yang dipakai: <a href="https://pub.dev/packages/flutter_launcher_icons">flutter_launcher_icons</a> dan <a href="https://pub.dev/packages/flutter_native_splash">flutter_native_splash</a>.</p>
+
+<p>Sebelumnya: <a href="0013-testing.html">Lesson 013 — Testing Aplikasi</a>.</p>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

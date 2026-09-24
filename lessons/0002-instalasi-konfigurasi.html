@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 002 — Instalasi &amp; Konfigurasi Flutter</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 002 · Modul 2 · Instalasi &amp; Konfigurasi Flutter</p>
+<h1>Environment kamu sudah siap — ini buktinya</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/instalasi.html">Modul 2: Instalasi &amp; Konfigurasi Flutter</a>.</p>
+
+<p>Modul 2 biasanya paling nyeremin (install SDK, Android Studio, lisensi, PATH…). Kabar baiknya: <strong>kamu sudah melewatinya</strong> waktu kita setup kemarin. Modul ini kita jadikan <em>verifikasi</em> — buktikan lingkungannya sehat, bukan install ulang.</p>
+
+<h2>Checklist yang sudah dicentang ✅</h2>
+<table>
+<tr><th>Item (dari materi dosen)</th><th>Status kamu</th></tr>
+<tr><td>Flutter SDK terinstall + di PATH</td><td>✅ Flutter 3.47.5 stable di <code>C:\Users\AcerAG14\flutter</code></td></tr>
+<tr><td>Android SDK + cmdline-tools + build-tools</td><td>✅ SDK 36.1.0, cmdline-tools latest terpasang</td></tr>
+<tr><td>Lisensi Android di-accept</td><td>✅ <code>All SDK package licenses accepted</code></td></tr>
+<tr><td>Android Studio</td><td>✅ Terpasang</td></tr>
+<tr><td>VS Code + ekstensi Flutter/Dart</td><td>✅ Flutter+Dart v3.142, Awesome Snippets, Error Lens</td></tr>
+<tr><td>Emulator / device</td><td>✅ Emulator <em>Medium_Phone</em> ada + target Windows &amp; Chrome</td></tr>
+<tr><td><code>flutter doctor</code></td><td>✅ Android toolchain hijau</td></tr>
+</table>
+
+<h2>Struktur project — peta folder yang wajib kamu hafal</h2>
+<pre><code>anemia/
+├── android/          # konfigurasi native Android (jangan disentuh dulu)
+├── ios/              # konfigurasi native iOS
+├── lib/              # ⭐ KODE UTAMA — tempat kamu menulis semua kode Dart
+│   └── main.dart     # entry point aplikasi
+├── test/             # widget test
+├── web/              # konfigurasi Flutter Web
+├── pubspec.yaml      # ⭐ dependensi / package manager
+├── pubspec.lock      # lock file — jangan diedit manual
+└── README.md</code></pre>
+
+<h2>Cara menyalakan aplikasi (ini skill pentingnya)</h2>
+<table>
+<tr><th>Perintah</th><th>Maknanya</th></tr>
+<tr><td><code>flutter run</code></td><td>Jalankan di emulator/device Android yang aktif</td></tr>
+<tr><td><code>flutter run -d chrome</code></td><td>Jalankan versi web di browser</td></tr>
+<tr><td><code>flutter emulators --launch Medium_Phone</code></td><td>Nyalakan emulator Android dari sini</td></tr>
+<tr><td>tekan <code>r</code> di terminal saat app jalan</td><td><strong>Hot Reload</strong> — ganti kode, langsung keliatan tanpa restart</td></tr>
+<tr><td>tekan <code>R</code></td><td>Hot Restart — reload penuh dari nol</td></tr>
+</table>
+
+<h2>Tugas praktik (5 menit)</h2>
+<ol>
+<li>Nyalakan emulator: <code>flutter emulators --launch Medium_Phone</code></li>
+<li>Di terminal project: <code>flutter run</code> — tunggu app "Halo Mahasiswa! 🎓" muncul di emulator.</li>
+<li>Coba <strong>hot reload</strong>: ubah teks di <code>lib/main.dart</code> jadi <code>'Halo dari Anemia! 🩸'</code>, simpan, tekan <code>r</code>. Perubahan langsung muncul — tanpa restart app.</li>
+<li>Beres? Tekan <code>q</code> untuk keluar dari <code>flutter run</code>.</li>
+</ol>
+
+<blockquote>Tidak ada emulator di laptop? <code>flutter run -d chrome</code> juga sah — app yang sama jalan di web.</blockquote>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Semua kode Dart kamu ditulis di folder…</h3>
+<button class="opt" data-q="q1" data-correct="true">lib/</button>
+<button class="opt" data-q="q1">test/</button>
+<button class="opt" data-q="q1">android/</button>
+<p class="explain"><code>lib/</code> adalah ⭐ kode utama. <code>test/</code> untuk test, <code>android/</code> native (jangan disentuh dulu).</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: File tempat mendaftarkan dependensi (package) adalah…</h3>
+<button class="opt" data-q="q2" data-correct="true">pubspec.yaml</button>
+<button class="opt" data-q="q2">main.dart</button>
+<button class="opt" data-q="q2">pubspec.lock</button>
+<p class="explain"><code>pubspec.yaml</code> = daftar package. <code>pubspec.lock</code> otomatis &amp; jangan diedit manual.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Saat app sedang jalan, tombol untuk Hot Reload adalah…</h3>
+<button class="opt" data-q="q3" data-correct="true">r</button>
+<button class="opt" data-q="q3">R</button>
+<button class="opt" data-q="q3">q</button>
+<p class="explain"><code>r</code> = hot reload (cepat, state dipertahankan), <code>R</code> = hot restart, <code>q</code> = keluar.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://docs.flutter.dev/get-started/editor?tab=vscode">Flutter docs: Set up an editor (VS Code)</a> — bagian resmi tentang VS Code setup &amp; hot reload.</p>
+
+<blockquote>Ada yang gagal pas praktik? Kabari aku — error terminal itu justru bagian paling berharga dari modul ini buat dipelajari.</blockquote>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

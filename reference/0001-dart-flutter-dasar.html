@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ref 001 — Cheat Sheet Dart &amp; Flutter Dasar</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Reference 001 · Modul 1</p>
+<h1>Cheat Sheet: Dart &amp; Flutter Dasar</h1>
+<p>Kompresi dari <a href="../lessons/0001-pengenalan-flutter-dart.html">Lesson 001</a>. Cetak atau simpan buat lihat cepat.</p>
+
+<h2>Glosarium cepat</h2>
+<table>
+<tr><th>Istilah</th><th>Definisi</th></tr>
+<tr><td><strong>Flutter</strong></td><td>UI toolkit open-source buatan Google; satu codebase → Android, iOS, web, desktop.</td></tr>
+<tr><td><strong>Dart</strong></td><td>Bahasa pemrograman (Google) yang dipakai untuk menulis seluruh kode Flutter.</td></tr>
+<tr><td><strong>Hot Reload</strong></td><td>Perubahan kode langsung terlihat di emulator/device tanpa kehilangan state app.</td></tr>
+<tr><td><strong>Widget</strong></td><td>Unit penyusun UI di Flutter — <em>semuanya adalah widget</em>.</td></tr>
+<tr><td><strong>Widget tree</strong></td><td>Hierarki/pohon susunan widget dari root sampai ke elemen UI terkecil.</td></tr>
+<tr><td><strong>StatelessWidget</strong></td><td>Widget tanpa state internal yang berubah (UI statis: Text, Icon).</td></tr>
+<tr><td><strong>StatefulWidget</strong></td><td>Widget dengan state yang bisa berubah saat runtime (form, counter, animasi).</td></tr>
+<tr><td><strong>Null safety</strong></td><td>Nilai tidak boleh <code>null</code> kecuali dinyatakan eksplisit dengan <code>?</code>.</td></tr>
+<tr><td><strong>Type inference</strong></td><td>Dart menebak tipe otomatis via <code>var</code> tanpa harus menuliskan tipe.</td></tr>
+<tr><td><strong>MaterialApp</strong></td><td>Widget root yang mengatur tema &amp; navigasi ala Material Design.</td></tr>
+<tr><td><strong>Scaffold</strong></td><td>Kerangka halaman (AppBar, body, FAB) — layout dasar satu layar.</td></tr>
+<tr><td><strong>Cross-platform</strong></td><td>Kode yang sama bisa jalan di banyak platform tanpa ditulis ulang.</td></tr>
+</table>
+
+<h2>Tipe data dasar Dart</h2>
+<pre><code>int umur = 28;          // bilangan bulat
+double ipk = 3.93;      // bilangan desimal
+bool isDosen = true;    // true / false
+String nama = 'Anemia'; // teks
+var nilai = 10;         // type inference: Dart menebak int</code></pre>
+
+<h2>Pola "Hello World" Flutter</h2>
+<pre><code>import 'package:flutter/material.dart';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
+      home: const Scaffold(
+        body: Center(child: Text('Halo!', style: TextStyle(fontSize: 24))),
+      ),
+    );
+  }
+}</code></pre>
+
+<h2>Perintah CLI yang sering dipakai</h2>
+<table>
+<tr><th>Perintah</th><th>Fungsi</th></tr>
+<tr><td><code>flutter doctor</code></td><td>Cek kesehatan toolchain Flutter.</td></tr>
+<tr><td><code>flutter create nama_project</code></td><td>Buat project baru.</td></tr>
+<tr><td><code>flutter run</code></td><td>Jalankan app di device/emulator.</td></tr>
+<tr><td><code>flutter test</code></td><td>Jalankan unit/widget test.</td></tr>
+<tr><td><code>flutter analyze</code></td><td>Static analysis — cari warning/error di kode.</td></tr>
+<tr><td><code>dart run bin/file.dart</code></td><td>Jalankan script Dart murni (tanpa Flutter).</td></tr>
+</table>
+
+<h2>Arsitektur Flutter (3 lapis)</h2>
+<ol>
+<li><strong>Framework (Dart)</strong> — tempat menulis kode: widget, gesture, animasi, painting.</li>
+<li><strong>Engine (C/C++)</strong> — rendering (Skia/Impeller), text layout, Dart runtime.</li>
+<li><strong>Embedder</strong> — komunikasi dengan OS (Android: Java/Kotlin; iOS: Obj-C/Swift).</li>
+</ol>
+
+<blockquote>Kalau ada istilah baru di materi dosen yang gak ada di sini, tambahkan — atau tanya ke agent dulu biar definisinya diralat dulu sebelum dicatat.</blockquote>
+</body>
+</html>

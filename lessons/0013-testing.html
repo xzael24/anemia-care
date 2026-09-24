@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 013 — Testing Aplikasi Flutter</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 013 · Modul 13 · Testing Aplikasi — Unit, Widget, Integration</p>
+<h1>Project kita udah 35 test — modul ini ngerapiin caranya 🧪</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/testing.html">Modul 13: Testing Aplikasi Flutter</a>.</p>
+
+<p>Kabar baik: sejak M6 kita udah nulis test di tiap modul (sekarang <strong>35 test</strong>). Jadi modul ini bukan bikin dari nol, tapi <strong>ngerapihin &amp; ngedalemin</strong>: piramida testing, pola <code>group</code>+<code>setUp</code> (AAA), macam-macam matcher, mocking HTTP, integration test, dan coverage. Semua tantangan dosen diadaptasi ke konteks app, bukan class abstrak.</p>
+
+<h2>Piramida testing (70 / 20 / 10)</h2>
+<table>
+<tr><th>Level</th><th>Nguji apa</th><th>Kecepatan</th><th>Di project kita</th></tr>
+<tr><td>Unit</td><td>Satu fungsi/class terisolasi</td><td>milidetik</td><td>AnemiaLogic (12), JadwalModel (2), PasienService (3), GaleriService (3)</td></tr>
+<tr><td>Widget</td><td>Satu widget + interaksinya, tanpa emulator</td><td>detik</td><td>app shell (5), Direktori (3), Galeri (3), ProfileCard (3), Jadwal UI (1)</td></tr>
+<tr><td>Integration</td><td>App nyata di device, end-to-end</td><td>paling lambat</td><td><code>integration_test/app_test.dart</code> — happy path catat→toggle→hapus</td></tr>
+</table>
+<p>Aturan praktis dosen: 70% unit, 20% widget, 10% integration. Logika bisnis dilindungi unit test; UI dilindungi widget test; alur penting dilindungi integration test.</p>
+
+<h2>Unit test — pola group + setUp (AAA)</h2>
+<p>Tantangan no. 1 dosen ("5 test untuk class Kalkulator") diadaptasi: class yang diuji bukan Kalkulator matematika, tapi <strong><code>AnemiaLogic</code></strong> — logika yang beneran dipakai app (batas Hb 12.0 dari dashboard M7, sekarang jadi satu sumber kebenaran yang di-refactor ke class ini). Struktur test-nya persis materi dosen:</p>
+<pre><code>group('AnemiaLogic.tingkatKeparahan', () {
+  test('klasifikasi lengkap lima nilai', () {
+    expect(AnemiaLogic.tingkatKeparahan(15.0), TingkatAnemia.normal);
+    expect(AnemiaLogic.tingkatKeparahan(11.5), TingkatAnemia.ringan);
+    expect(AnemiaLogic.tingkatKeparahan(9.8), TingkatAnemia.sedang);
+    expect(AnemiaLogic.tingkatKeparahan(6.9), TingkatAnemia.berat);
+  });
+
+  test('EDGE: batas band 11.0 = ringan, 8.0 = sedang, 7.9 = berat', () { ... });
+});</code></pre>
+<p>Pola <strong>AAA</strong>: Arrange (siapkan data, bisa di <code>setUp</code>), Act (panggil fungsi), Assert (cek dengan <code>expect</code>).</p>
+
+<h2>Matcher yang paling sering kepake</h2>
+<pre><code>// Dari materi dosen → yang beneran dipake di test kita:
+expect(5, 5);                                  // sama persis
+expect(persen, closeTo(66.67, 0.01));          // double approx → persentase
+expect(AnemiaLogic.statusAnemia(10.2), isTrue);
+expect(AnemiaLogic.statusAnemia(12.0), isFalse); // EDGE boundary
+expect(() =&gt; ..., throwsArgumentError);        // (di materi; kita pakai buat cek lempar)</code></pre>
+<p>Poin penting dari best practice dosen: <strong>test edge case</strong> — list kosong (jangan bagi nol), batas persis 12.0 (ternyata normal, bukan anemia!), 0.0 ekstrem.</p>
+
+<h2>Widget test — finder &amp; aksi</h2>
+<p>Tantangan no. 2: <strong><code>ProfileCard(nama, email)</code></strong> — dipasang beneran di header detail Direktori (data API M10), avatar inisial + nama + email + subtitle opsional:</p>
+<pre><code>testWidgets('ProfileCard menampilkan nama &amp; email + inisial avatar', (t) async {
+  await t.pumpWidget(const MaterialApp(
+    home: Scaffold(body: ProfileCard(nama: 'Silvi Rahmawati', email: 'silvi@example.com')),
+  ));
+  expect(find.text('Silvi Rahmawati'), findsOneWidget);
+  expect(find.text('silvi@example.com'), findsOneWidget);
+  expect(find.text('S'), findsOneWidget); // inisial
+});</code></pre>
+<p>Tantangan no. 3 (bonus dosen: widget test tambah/toggle/hapus): jadwal udah ditest di level model (M9) — sekarang dikomplitin di <strong>level UI</strong>: centang <code>CheckboxListTile</code>, hapus item, Hapus Semua Selesai. Pelajaran nyata: <code>find.byIcon(Icons.delete_outline)</code> ambigu kalau ada 2 item → harus <code>find.descendant(of: find.widgetWithText(CheckboxListTile, 'Budi Santoso'), ...)</code>.</p>
+
+<h2>Menguji form — validasi input kosong (dari materi dosen)</h2>
+<pre><code>// Mirip "Login menolak email kosong" → form tambah pasien (M10)
+testWidgets('Tambah pasien: form kosong → SnackBar merah validasi', (t) async {
+  await pumpDirektori(t);
+  await t.tap(find.byIcon(Icons.person_add));
+  await t.pumpAndSettle();
+  await t.tap(find.text('Simpan'));   // submit tanpa isi apa-apa
+  await t.pump();
+  expect(find.text('Nama &amp; email wajib diisi'), findsOneWidget);
+});</code></pre>
+<p>Bukan cuma jalan senang: branch validasi yang biasanya kelewat sekarang ketutup test.</p>
+
+<h2>Mocking HTTP — deviasi tercatat (mockito vs MockClient)</h2>
+<p>Dosen pakai <code>mockito</code> + <code>build_runner</code> (codegen). Kita sejak M10 pakai <strong><code>MockClient</code></strong> bawaan <code>package:http/testing</code> — hasilnya sama (test cepat, offline, nggak hit server), tapi nggak butuh dependency codegen &amp; generate. Prinsipnya identik: JANGAN hit server beneran di test.</p>
+
+<h2>Integration test — app nyata di emulator</h2>
+<p>Dibikin <code>integration_test/app_test.dart</code> (package SDK <code>integration_test</code>): happy path end-to-end — buka app → catat Silvi ke jadwal → toggle selesai → hapus → kosong. Dua keputusan jujur: (1) nggak kebawa <code>flutter test</code> biasa (default cuma folder <code>test/</code>), jadi suite kita tetap cepat; (2) nggak buka tab Direktori karena butuh jaringan/API. Test-nya idempoten (bersihin sisa "selesai" dari run sebelumnya).</p>
+<pre><code>// Jalanin (butuh emulator/device aktif — belum dijalankan sesi ini, RAM):
+$ flutter test integration_test/app_test.dart</code></pre>
+
+<h2>Coverage — berapa banyak kode yang ketest?</h2>
+<pre><code>$ flutter test --coverage        # → coverage/lcov.info
+$ genhtml coverage/lcov.info -o coverage/html   # butuh tool lcov</code></pre>
+<p>Di mesin ini <code>genhtml</code> nggak ada, jadi dihitung manual dari lcov.info: <strong>86.6% baris lib/ ketutup test (568/656, 16 file)</strong> — sisa 13.4% mostly branch error &amp; callback UI (kamera, dll) yang emang butuh device nyata / belum di-test.</p>
+
+<h2>Best practice (dari dosen, dibuktikan di project kita)</h2>
+<ol>
+<li><strong>Berikan Key di widget penting</strong> — kita pakai <code>ValueKey(foto.path)</code> di galeri, dst.</li>
+<li><strong>Pisahkan logic dari UI</strong> — AnemiaLogic, service, dan store pisah dari widget; itu kenapa “murni Dart” itu gampang di-unit-test.</li>
+<li><strong>Test edge case</strong> — batas 12.0, list kosong, input kosong, server 500 (error state Direktori).</li>
+<li><strong>Jangan test framework</strong> — nggak ada test buat ngebuktiin setState jalan.</li>
+</ol>
+
+<h2>Yang berubah di project</h2>
+<table>
+<tr><th>File</th><th>Isi</th></tr>
+<tr><td><code>lib/models/anemia_logic.dart</code></td><td>Class murni: statusAnemia / tingkatKeparahan (enum) / persentaseAnemia / deltaHb — adaptasi Kalkulator dosen</td></tr>
+<tr><td><code>lib/widgets/profile_card.dart</code></td><td>ProfileCard(nama, email, subtitle) — adaptasi tantangan no. 2</td></tr>
+<tr><td><code>lib/screens/detail_direktori_screen.dart</code></td><td>Header pakai ProfileCard (email) — nama/UID row lama dihapus</td></tr>
+<tr><td><code>lib/screens/dashboard_screen.dart</code></td><td><code>_batasHbNormal</code> → <code>AnemiaLogic.batasHbNormal</code> (satu sumber kebenaran)</td></tr>
+<tr><td><code>integration_test/app_test.dart</code></td><td>Integration test happy path (jalan di emulator, <code>flutter test integration_test</code>)</td></tr>
+<tr><td><code>test/anemia_logic_test.dart</code></td><td>12 unit test, group + matcher + edge case (tantangan 1)</td></tr>
+<tr><td><code>test/profile_card_test.dart</code></td><td>3 widget test (tantangan 2)</td></tr>
+<tr><td><code>test/jadwal_widget_test.dart</code></td><td>1 widget test toggle/hapus di UI (tantangan 3)</td></tr>
+<tr><td><code>test/direktori_widget_test.dart</code></td><td>+1 test validasi form kosong</td></tr>
+<tr><td><code>pubspec.yaml</code></td><td>+dev <code>integration_test</code> (sdk: flutter — bukan pub add biasa!)</td></tr>
+</table>
+
+<p>Total test sekarang <strong>35</strong> (semua pass) + analyze No issues + coverage 86.6%.</p>
+
+<h2>Tugas praktik</h2>
+<ol>
+<li>Jalanin semua test: <code>flutter test --concurrency=1</code> → 35 lulus.</li>
+<li>Coverage: <code>flutter test --coverage --concurrency=1</code> → cek <code>coverage/lcov.info</code> (86.6% lib/).</li>
+<li><strong>Kalau emulator aktif:</strong> <code>flutter test integration_test/app_test.dart</code> — integration test beneran jalan di device. (Butuh RAM luang — tutup IDE/browser.)</li>
+<li>Coba rusakin sesuatu (misal ubah batas 12.0 → 13.0) → test AnemiaLogic harus ikut gagal. Itu gunanya test: nangkep regresi.</li>
+<li>Explore: tab Direktori → detail → header sekarang ProfileCard dengan inisial + email.</li>
+</ol>
+
+<blockquote>Catatan jujur: coverage 86.6% itu baris <code>lib/</code> yang ketutup test — bukan jaminan "bebas bug", tapi jaring pengaman yang bikin tiap modul berikutnya (build, publish, final project) berani diutak-atik.</blockquote>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Urutan piramida testing dari yang PALING cepat ke paling lambat…</h3>
+<button class="opt" data-q="q1" data-correct="true">Unit → Widget → Integration</button>
+<button class="opt" data-q="q1">Integration → Widget → Unit</button>
+<button class="opt" data-q="q1">Widget → Unit → Integration</button>
+<p class="explain">Unit milidetik &amp; terisolasi; widget butuh render; integration jalan di device nyata.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Tantangan "class Kalkulator" diadaptasi jadi…</h3>
+<button class="opt" data-q="q2" data-correct="true">AnemiaLogic — logika yang beneran dipakai app</button>
+<button class="opt" data-q="q2">tetap Kalkulator apa adanya</button>
+<button class="opt" data-q="q2">kalkulator Hb dalam widget</button>
+<p class="explain">Jdi class murni (statusAnemia, tingkatKeparahan, persentase, deltaHb) — makin nyambung ke misi app.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Mocking HTTP di project kita pakai…</h3>
+<button class="opt" data-q="q3" data-correct="true">MockClient dari package:http/testing (tanpa codegen)</button>
+<button class="opt" data-q="q3">mockito + build_runner persis dosen</button>
+<button class="opt" data-q="q3">hit server beneran</button>
+<p class="explain">Deviasi tercatat: hasil sama (test offline &amp; cepat), tanpa dependency extra — prinsip dosen tetap dipegang.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: find.byIcon(delete_outline) ambigu pas ada 2 item, solusinya…</h3>
+<button class="opt" data-q="q4" data-correct="true">find.descendant(of: find.widgetWithText(CheckboxListTile, nama), matching: …)</button>
+<button class="opt" data-q="q4">hapus semua item dulu</button>
+<button class="opt" data-q="q4">pakai find.byIcon dua kali</button>
+<p class="explain">Targetkan ikon di dalam konteks baris spesifik biar cuma satu match.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Kenapa integration test dipisah di folder integration_test?</h3>
+<button class="opt" data-q="q5" data-correct="true">biar `flutter test` biasa tetap cepat (nggak ke-trigger)</button>
+<button class="opt" data-q="q5">biar lebih susah dijalankan</button>
+<button class="opt" data-q="q5">tidak ada alasan</button>
+<p class="explain">Integration butuh device &amp; lambat — di-pisah biar suite unit/widget harian nggak kena.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://docs.flutter.dev/testing">Flutter: Testing</a> (unit/widget/integration, dll), <a href="https://docs.flutter.dev/testing/overview">Testing overview</a>, dan <a href="https://docs.flutter.dev/testing/integration-tests">Integration tests</a>. Matcher API lengkap: <a href="https://pub.dev/documentation/matcher/latest/">pub.dev: matcher</a>. MockClient bawaan http: <a href="https://pub.dev/documentation/http/latest/testing/package-testing-library.html">package:http/testing</a>.</p>
+
+<p>Sebelumnya: <a href="0012-media.html">Lesson 012 — Pengelolaan Media</a>.</p>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

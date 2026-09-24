@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 009 — State Management</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 009 · Modul 9 · State Management</p>
+<h1>Jadwal pemantauan beneran nyimpen data sekarang</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/state-management.html">Modul 9: State Management</a>.</p>
+
+<p><strong>State</strong> = data yang bisa berubah seiring waktu. Sampai Modul 8, data kita nempel mati di dalam widget — "Catat ke Jadwal" cuma ngasih SnackBar terus ilang. Modul ini benerin itu: todo-list dosen kita ubah jadi <strong>Jadwal Pemantauan</strong>, dan tab Jadwal sekarang <strong>beneran nyimpen</strong> pasien yang lo catat, bisa dicentang selesai, dihapus, dan dilihat statistiknya. 🗓️</p>
+
+<h2>Stateless vs Stateful — inget lagi</h2>
+<table>
+<tr><th></th><th>StatelessWidget</th><th>StatefulWidget</th></tr>
+<tr><td>Isi</td><td>tetap sepanjang umur</td><td>punya data internal yang bisa berubah</td></tr>
+<tr><td>Contoh</td><td>Text, Icon, kartu profil</td><td>counter, form, tab aktif</td></tr>
+<tr><td>Ubah tampilan</td><td>tidak bisa</td><td><code>setState(() { ... })</code> → rebuild</td></tr>
+</table>
+
+<h2>1. setState — cara paling fundamental</h2>
+<pre><code>class _CounterState extends State&lt;CounterPage&gt; {
+  int _angka = 0;
+
+  void _tambah() {
+    setState(() { _angka++; });  // ← sinyal "build ulang!"
+  }
+  ...
+}</code></pre>
+<p>Tanpa <code>setState</code>, nilainya berubah di memori tapi tampilan nggak ikut — karena Flutter cuma rebuild kalau dikasih tahu.</p>
+
+<h2>2. Lifting state up — berbagi ke sibling</h2>
+<p>Dua widget bersaudara yang perlu state yang sama → <strong>pindahkan state ke parent</strong>, terus turunin via constructor:</p>
+<pre><code>Column(children: [
+  Tampilan(angka: _counter),                        // terima state
+  Tombol(onTambah: () =&gt; setState(() =&gt; _counter++)), // ubah state
+])</code></pre>
+<p>Masalahnya pas app besar: state dipakai halaman ke-4 dan halaman ke-1 → "prop drilling" sakit. Solusinya Provider 👇</p>
+
+<h2>3. ValueNotifier — reactive tanpa package</h2>
+<pre><code>final counter = ValueNotifier&lt;int&gt;(0);
+
+ValueListenableBuilder&lt;int&gt;(
+  valueListenable: counter,
+  builder: (context, value, _) =&gt; Text('$value'),
+)
+
+onPressed: () =&gt; counter.value++,</code></pre>
+
+<h2>4. Provider — state global yang scalable (standar industri)</h2>
+<p>Tiga komponen:</p>
+<table>
+<tr><th>Komponen</th><th>Peran</th></tr>
+<tr><td><code>ChangeNotifier</code></td><td>class penyimpan state + panggil <code>notifyListeners()</code> tiap berubah</td></tr>
+<tr><td><code>ChangeNotifierProvider</code></td><td>inject model ke widget tree</td></tr>
+<tr><td><code>context.watch</code> / <code>context.read</code></td><td>baca state (watch = ikut rebuild, read = tanpa subscribe)</td></tr>
+</table>
+
+<pre><code>// 1) Model
+class JadwalModel extends ChangeNotifier {
+  final List&lt;JadwalItem&gt; _items = [];
+  List&lt;JadwalItem&gt; get items =&gt; List.unmodifiable(_items);
+  int get jumlahBelumSelesai =&gt; _items.where((i) =&gt; !i.selesai).length;
+
+  void tambah(String nama) { _items.add(JadwalItem(nama)); notifyListeners(); }
+  void toggle(int i) { _items[i].selesai = !_items[i].selesai; notifyListeners(); }
+}
+
+// 2) Inject
+ChangeNotifierProvider(
+  create: (_) =&gt; JadwalModel(),
+  child: const AnemiaApp(),
+)
+
+// 3a) Baca + rebuild otomatis (pakai di build)
+final model = context.watch&lt;JadwalModel&gt;();
+
+// 3b) Baca doang, tanpa rebuild (pakai di event handler)
+context.read&lt;JadwalModel&gt;().tambah('Silvi');</code></pre>
+
+<h2>context.watch vs context.read — bedanya wajib hafal</h2>
+<table>
+<tr><th></th><th><code>watch&lt;T&gt;()</code></th><th><code>read&lt;T&gt;()</code></th></tr>
+<tr><td>Subscribe?</td><td>ya</td><td>tidak</td></tr>
+<tr><td>Rebuild?</td><td>ya, tiap state berubah</td><td>tidak pernah</td></tr>
+<tr><td>Dipakai di</td><td><code>build()</code></td><td><code>onPressed</code> dll.</td></tr>
+</table>
+
+<h2>Yang berubah di project</h2>
+<table>
+<tr><th>File</th><th>Isi</th></tr>
+<tr><td><code>lib/models/jadwal_model.dart</code></td><td><code>JadwalModel extends ChangeNotifier</code> + getter (total, jumlahSelesai/Belum, persentase) — adaptasi TodoModel</td></tr>
+<tr><td><code>lib/main.dart</code></td><td><code>ChangeNotifierProvider</code> bungkus app + tab Jadwal jadi konsumen state (centang selesai, hapus, Hapus Semua Selesai, counter AppBar)</td></tr>
+<tr><td><code>lib/screens/dashboard_screen.dart</code></td><td>"Catat ke Jadwal" (hasil pop M8) sekarang <em>disimpan ke state</em> — <code>context.read&lt;JadwalModel&gt;().tambah(hasil)</code></td></tr>
+<tr><td><code>lib/screens/statistik_screen.dart</code></td><td>halaman baru — total/selesai/belum/persentase baca <strong>Provider yang sama</strong> (route <code>/statistik</code>)</td></tr>
+<tr><td><code>test/jadwal_model_test.dart</code></td><td>unit test model (baru!) — tambah/tolak duplikat/toggle/persentase/hapus</td></tr>
+</table>
+
+<p>Package baru: <code>flutter pub add provider</code> (provider 6.1.5).</p>
+
+<p>Catatan deviasi: dosen nyuruh tombol "Hapus Semua Selesai" di bottom bar — kita taruh di bawah daftar karena shell app kita sudah punya tab bar (NavigationBar di Modul 8). Alasan dicatat, bukan dilupakan.</p>
+
+<h2>Tugas praktik (10 menit)</h2>
+<ol>
+<li><code>flutter run</code> → Beranda → klik pasien → Catat ke Jadwal → pindah tab <strong>Jadwal</strong> → pasiennya ADA di list, counter "1 belum selesai" di AppBar.</li>
+<li>Centang pasiennya → garis coret muncul, counter jadi "0 belum selesai", tombol <strong>Hapus Semua Selesai</strong> muncul.</li>
+<li>Tekan ikon 📊 di AppBar Jadwal → Statistik (Total 1, Selesai 1, 0% ... menyesuaikan). Balik, hapus item → statistik ikut berubah. <em>Itu state global: satu sumber data, semua halaman sinkron.</em></li>
+<li><strong>Tantangan dosen:</strong> tambah method <code>resetSemua()</code> di JadwalModel + tombolnya di halaman manapun yang lo mau.</li>
+</ol>
+
+<h2>Kapan pakai apa?</h2>
+<table>
+<tr><th>Teknik</th><th>Pas buat</th></tr>
+<tr><td><code>setState</code></td><td>state lokal satu widget (toggle password show/hide)</td></tr>
+<tr><td><code>ValueNotifier</code></td><td>state sederhana, mau reactive tanpa setup library</td></tr>
+<tr><td><code>Provider</code></td><td>state global / dipakai banyak halaman — standar industri</td></tr>
+<tr><td>Riverpod / Bloc</td><td>skala enterprise (kuliah lanjutan)</td></tr>
+</table>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Ganti tampilan di StatefulWidget harus dibungkus…</h3>
+<button class="opt" data-q="q1" data-correct="true">setState()</button>
+<button class="opt" data-q="q1">build()</button>
+<button class="opt" data-q="q1">notifyListeners()</button>
+<p class="explain"><code>setState()</code> adalah sinyal eksplisit ke Flutter untuk build ulang. <code>notifyListeners()</code> punya ChangeNotifier.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Dua widget bersaudara berbagi state → pindahkan ke…</h3>
+<button class="opt" data-q="q2" data-correct="true">parent bersama</button>
+<button class="opt" data-q="q2">file global</button>
+<button class="opt" data-q="q2">SnackBar</button>
+<p class="explain">Lifting state up: state di parent, diturunkan via constructor. Bukan file global (bikin kode sulit dilacak).</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: ChangeNotifier memberi tahu listener dengan…</h3>
+<button class="opt" data-q="q3" data-correct="true">notifyListeners()</button>
+<button class="opt" data-q="q3">setState()</button>
+<button class="opt" data-q="q3">runApp()</button>
+<p class="explain"><code>notifyListeners()</code> di panggil setelah state berubah di dalam ChangeNotifier. <code>setState</code> cuma untuk StatefulWidget.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Baca state + auto-rebuild saat berubah = pakai…</h3>
+<button class="opt" data-q="q4" data-correct="true">context.watch</button>
+<button class="opt" data-q="q4">context.read</button>
+<button class="opt" data-q="q4">context.pop</button>
+<p class="explain"><code>watch</code> subscribe → rebuild. <code>read</code> hanya baca sekali, cocok untuk onPressed.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Setelah pop dengan data (M8), disimpan ke state global pakai…</h3>
+<button class="opt" data-q="q5" data-correct="true">context.read&lt;JadwalModel&gt;().tambah(hasil)</button>
+<button class="opt" data-q="q5">setState(() =&gt; _items.add)</button>
+<button class="opt" data-q="q5">membuat widget baru</button>
+<p class="explain"><code>read</code> di event handler + method model (<code>tambah</code>) — data masuk ke satu sumber yang dipakai semua halaman.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://docs.flutter.dev/data-and-backend/state-mgmt/intro">Flutter docs: State management intro</a> (kapan pake setState vs lifting vs library) dan <a href="https://pub.dev/packages/provider">pub.dev: package provider</a> (ChangeNotifierProvider, watch/read/select).</p>
+
+<p>Sebelumnya: <a href="0008-navigation-routing.html">Lesson 008 — Navigation &amp; Routing</a>.</p>
+
+<blockquote>Provider ngebikin data bisa diakses dari halaman mana pun — tapi pertanyaannya pas Modul 10 (REST API): dari mana data awalnya dapat? Provider hanya ngedistribusikan; sumber datanya nanti dari server. Santai, step by step.</blockquote>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

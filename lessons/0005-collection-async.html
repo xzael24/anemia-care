@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 005 — Collection &amp; Async</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 005 · Modul 5 · Collection &amp; Async di Dart</p>
+<h1>Daftar pasien dari server, tanpa aplikasi ngambek</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/collection-async.html">Modul 5: Collection &amp; Async di Dart</a>.</p>
+
+<p>Dua skill yang bakal lo pakai SETIAP HARI di Flutter: ngolah <strong>kumpulan data</strong> (list pasien dari API → tampil di ListView) dan ngambil data <strong>tanpa nge-freeze</strong> app (async/await). App anemia lo: daftar pasien, riwayat hemoglobin, panggilan ke database — semua di sini.</p>
+
+<h2>1. List, Set, Map — pilih yang mana?</h2>
+<table>
+<tr><th>Tipe</th><th>Ciri</th><th>Contoh di app anemia</th></tr>
+<tr><td><code>List</code></td><td>Berurutan, index 0, boleh duplikat</td><td>antrian pasien hari ini</td></tr>
+<tr><td><code>Set</code></td><td>Unik, auto buang duplikat + <code>union/intersection/difference</code></td><td>kode pasien yang sudah diskrining</td></tr>
+<tr><td><code>Map</code></td><td>Pasangan key-value, key unik</td><td>data JSON dari API: <code>{'nama': 'Silvi', 'hb': 10.2}</code></td></tr>
+</table>
+<pre><code>List&lt;String&gt; antrian = ['Silvi', 'Budi'];
+antrian.add('Dono');
+antrian.removeAt(0);            // hapus index 0
+
+Set&lt;String&gt; sudahSkrining = {'PSN-0001', 'PSN-0002', 'PSN-0001'};
+print(sudahSkrining);           // {PSN-0001, PSN-0002}
+
+var sesiPagi = {'A', 'B'};
+var sesiSore = {'B', 'C'};
+print(sesiPagi.union(sesiSore));        // {A, B, C}
+print(sesiPagi.intersection(sesiSore)); // {B}</code></pre>
+
+<h2>2. Spread &amp; collection operators — literal jadi "hidup"</h2>
+<pre><code>var semua = [0, ...awal, 4, 5];          // spread: gabung list
+
+var menu = [
+  'Home',
+  'Profile',
+  if (isAdmin) 'Admin Panel',            // collection if
+];
+
+var kuadrat = [for (var n in angka) n * n];  // collection for</code></pre>
+
+<h2>3. Higher-order methods — ganti loop manual ⭐</h2>
+<pre><code>var kuadrat = angka.map((n) =&gt; n * n).toList();      // transformasi
+var genap   = angka.where((n) =&gt; n % 2 == 0).toList(); // saring
+var total   = angka.reduce((a, b) =&gt; a + b);           // akumulasi
+angka.any((n) =&gt; n &gt; 4);      // ada yang &gt;4?  → true
+angka.every((n) =&gt; n &gt; 0);    // semua &gt;0?    → true</code></pre>
+
+<h2>4. Future &amp; async/await — jangan sampai UI nge-freeze</h2>
+<pre><code>Future&lt;String&gt; ambilData() async {
+  print('Mengambil data...');
+  await Future.delayed(Duration(seconds: 2)); // simulasi jaringan
+  return 'Data berhasil diambil!';
+}
+
+void main() async {
+  String hasil = await ambilData(); // nunggu, tapi thread tetap jalan
+  print(hasil);
+}</code></pre>
+<p><strong>Aturan:</strong> <code>await</code> hanya boleh di dalam fungsi bertanda <code>async</code>. Tanpa <code>await</code>, kode lanjut dulu tanpa nunggu — itu yang bikin bug "data belum ada" di Flutter.</p>
+
+<h2>5. Error handling — wajib di operasi yang bisa gagal</h2>
+<pre><code>try {
+  var user = await ambilUser(-1);
+  print(user);
+} catch (e) {
+  print('Error: $e');   // jaringan putus, server 500, dsb.
+} finally {
+  print('Proses selesai');
+}</code></pre>
+
+<h2>6. Stream — data datang bertahap</h2>
+<pre><code>Stream&lt;int&gt; hitungMundur(int dari) async* {  // async* + yield
+  for (int i = dari; i &gt;= 0; i--) {
+    await Future.delayed(Duration(seconds: 1));
+    yield i;
+  }
+}
+
+await for (var n in hitungMundur(3)) { ... }  // 3, 2, 1, 0</code></pre>
+<table>
+<tr><th>Konsep</th><th>Satu nilai?</th><th>Cara buat</th></tr>
+<tr><td><code>Future</code></td><td>Ya, satu nilai di masa depan</td><td><code>async</code> / <code>await</code></td></tr>
+<tr><td><code>Stream</code></td><td>Tidak — banyak nilai bertahap</td><td><code>async*</code> / <code>yield</code>, baca dengan <code>await for</code></td></tr>
+</table>
+
+<h2>Tugas praktik (7 menit)</h2>
+<ol>
+<li>Jalankan: <code>dart run bin/collection_async_anemia.dart</code> — perhatiin <strong>urutan print</strong>: baris "Mengambil hasil lab..." → tunggu 2 detik (terasa!) → hasilnya. Itu async.</li>
+<li><strong>Ubah no. 1:</strong> tambah 'Gina' di daftar <code>['Eka', 'Fajar']</code> → total data pasien jadi 6.</li>
+<li><strong>Ubah no. 2:</strong> ganti ambang filter anemia dari <code>&lt; 12.0</code> jadi <code>&lt; 11.0</code> → siapa yang hilang dari daftar anemia?</li>
+<li><strong>Ubah no. 3:</strong> <code>Duration(seconds: 2)</code> → <code>seconds: 5</code> → jalanin lagi. Aplikasi tetap "jalan" selama nunggu — itu bedanya async vs freeze.</li>
+</ol>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Method untuk menyaring elemen collection…</h3>
+<button class="opt" data-q="q1" data-correct="true">where</button>
+<button class="opt" data-q="q1">map</button>
+<button class="opt" data-q="q1">reduce</button>
+<p class="explain"><code>where</code> = saring dengan kondisi. <code>map</code> = transformasi. <code>reduce</code> = akumulasi.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: <code>await</code> hanya boleh dipakai di fungsi bertanda…</h3>
+<button class="opt" data-q="q2" data-correct="true">async</button>
+<button class="opt" data-q="q2">void</button>
+<button class="opt" data-q="q2">async*</button>
+<p class="explain"><code>await</code> butuh <code>async</code>. <code>async*</code> itu untuk Stream (pakai yield).</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Future mengembalikan … di masa depan</h3>
+<button class="opt" data-q="q3" data-correct="true">satu nilai</button>
+<button class="opt" data-q="q3">banyak nilai</button>
+<button class="opt" data-q="q3">tanpa nilai</button>
+<p class="explain">Future = satu nilai yang belum ada sekarang. Banyak nilai bertahap itu Stream.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Stream dibuat dengan tanda…</h3>
+<button class="opt" data-q="q4" data-correct="true">async*</button>
+<button class="opt" data-q="q4">async</button>
+<button class="opt" data-q="q4">await</button>
+<p class="explain"><code>async*</code> + <code>yield</code> = Stream. <code>async</code> + <code>return</code> = Future.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Elemen muncul hanya jika kondisi true, pakai…</h3>
+<button class="opt" data-q="q5" data-correct="true">if</button>
+<button class="opt" data-q="q5">while</button>
+<button class="opt" data-q="q5">for</button>
+<p class="explain">Collection if: <code>[if (kondisi) elemen]</code>. Collection for untuk perulangan di literal.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://dart.dev/language/collections">Dart docs: Collections</a> (List/Set/Map, spread, collection if/for) dan <a href="https://dart.dev/language/async">Dart docs: Asynchrony support</a> (Future, Stream, async/await). Materi dosen kamu adalah ringkasannya.</p>
+
+<p>Sebelumnya: <a href="0004-fungsi-oop.html">Lesson 004 — Function &amp; OOP</a>. Referensi kilat: <a href="../reference/0001-dart-flutter-dasar.html">cheat sheet Dart dasar</a>.</p>
+
+<blockquote>Bingung kenapa kode "lanjut duluan" tanpa <code>await</code>, atau beda Future vs Stream? Tanya ke aku — ini konsep yang paling sering bikin app Flutter "kelihatan error" tanpa error.</blockquote>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

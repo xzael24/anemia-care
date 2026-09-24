@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 011 — Local Storage (SQLite & SharedPreferences)</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 011 · Modul 11 · Local Storage — SharedPreferences &amp; SQLite</p>
+<h1>Data jadwal lo sekarang disimpen beneran 💾</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/local-storage.html">Modul 11: Local Storage (SQLite)</a>.</p>
+
+<p>Ini modul yang paling ditunggu: sejak Modul 9, jadwal pemantauan cuma hidup di <strong>memori</strong> — tutup app, ilang. Sekarang data **persist**: restart app, jadwal lo tetep ada. Bonus dosen (login persist pakai SharedPreferences) kita adaptasi biar masuk konteks app: <strong>"kembali ke tab terakhir yang lo buka"</strong>.</p>
+
+<h2>Pilih storage yang tepat</h2>
+<table>
+<tr><th>Storage</th><th>Cocok buat</th><th>Di app kita</th></tr>
+<tr><td><code>SharedPreferences</code></td><td>Data kecil key-value: pengaturan, flag, token</td><td>Tab terakhir dibuka (<code>tab_terakhir</code>)</td></tr>
+<tr><td><code>SQLite (sqflite)</code></td><td>Data terstruktur + relasi, CRUD penuh</td><td>Tabel <code>jadwal</code> — jadwal pemantauan</td></tr>
+<tr><td>Hive / Isar / ObjectBox</td><td>NoSQL object, super cepat</td><td>— (disebut dosen, nggak dipakai)</td></tr>
+</table>
+
+<h2>SharedPreferences — key-value persisten</h2>
+<pre><code>// SIMPAN
+final prefs = await SharedPreferences.getInstance();
+await prefs.setInt('tab_terakhir', 3);
+
+// BACA (null kalau belum pernah disimpan)
+final saved = prefs.getInt('tab_terakhir');</code></pre>
+<p>Dipasang di <code>HomeShell</code>: waktu ganti tab → simpan index-nya; waktu app start → pulihkan. Bonus dosen "login persist" diadaptasi ke fitur ini biar masuk konteks app (kita nggak punya login).</p>
+
+<h2>SQLite — model + toMap/fromMap</h2>
+<p>Pola Note dari dosen, untuk item jadwal kita:</p>
+<pre><code>class JadwalItem {
+  final int? id;            // null sebelum masuk DB → autoincrement
+  final String namaPasien;
+  bool selesai;
+  final String dibuatAt;    // ISO 8601
+
+  Map&lt;String, dynamic&gt; toMap() => {
+        'id': id, 'nama': namaPasien,
+        'selesai': selesai ? 1 : 0,   // SQLite nggak kenal bool, pakai 0/1
+        'dibuatAt': dibuatAt,
+      };
+
+  factory JadwalItem.fromMap(Map&lt;String, dynamic&gt; m) =&gt; ...;
+}</code></pre>
+
+<h2>DatabaseHelper singleton (pola dosen)</h2>
+<pre><code>class JadwalDbStore implements JadwalStore {
+  JadwalDbStore._();
+  static final JadwalDbStore instance = JadwalDbStore._();
+  static Database? _db;
+
+  Future&lt;Database&gt; get _database async {
+    if (_db != null) return _db!;
+    final path = join(await getDatabasesPath(), 'anemia_jadwal.db');
+    _db = await openDatabase(path, version: 1,
+      onCreate: (db, _) =&gt; db.execute('''
+        CREATE TABLE jadwal (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nama TEXT NOT NULL,
+          selesai INTEGER NOT NULL DEFAULT 0,
+          dibuatAt TEXT NOT NULL
+        )'''));
+    return _db!;
+  }
+
+  // CRUD: query/insert/update/delete pakai SQL + whereArgs ($,-injection aman)
+}</code></pre>
+
+<h2>Kenapa model nggak nyentuh SQLite langsung?</h2>
+<pre><code>abstract class JadwalStore {
+  Future&lt;List&lt;JadwalItem&gt;&gt; muatSemua();
+  Future&lt;int&gt; tambah(JadwalItem item);
+  Future&lt;void&gt; update(JadwalItem item);
+  Future&lt;void&gt; hapus(int id);
+}</code></pre>
+<p>Soalnya sqflite butuh <strong>plugin native yang nggak ada di widget test</strong>. JadwalModel cuma kenal interface ini — di produksi diisi <code>JadwalDbStore.instance</code>, di test diisi <code>InMemoryJadwalStore</code> (fake di <code>test/fakes/</code>). Bonusnya: logika bisnis berdiri sendiri dari database, dan test "persisten" bisa membuktikan data balik lagi setelah "restart" tanpa perlu SQLite beneran.</p>
+
+<h2>Perubahan besar di model (Modul 9 → 11)</h2>
+<pre><code>class JadwalModel extends ChangeNotifier {
+  JadwalModel({JadwalStore? store}) : _store = store ?? JadwalDbStore.instance {
+    _init = _muat(); // load data lama pas app start
+  }
+  late final Future&lt;void&gt; _init;
+  Future&lt;void&gt; get init =&gt; _init; // test: await model.init biar nggak balapan
+
+  bool get siap =&gt; _siap;         // UI nampilin spinner sampai data kebaca
+
+  Future&lt;void&gt; tambah(String nama) async { ... }   // insert → id asli
+  Future&lt;void&gt; toggle(int id) async { ... }        // ganti index → id
+  Future&lt;void&gt; hapus(int id) async { ... }
+}</code></pre>
+<p>Semua operasi sekarang <code>async</code> dan pakai <strong>id</strong> (bukan index) — karena data bisa beda urutan setelah reload dari DB.</p>
+
+<h2>Yang berubah di project</h2>
+<table>
+<tr><th>File</th><th>Isi</th></tr>
+<tr><td><code>lib/models/jadwal_item.dart</code></td><td>JadwalItem baru: + id &amp; dibuatAt, toMap/fromMap (dipisah dari model biar nggak import melingkar)</td></tr>
+<tr><td><code>lib/models/jadwal_model.dart</code></td><td>Persisten: load di init, semua operasi async by-id, getter <code>siap</code> + <code>init</code></td></tr>
+<tr><td><code>lib/services/jadwal_store.dart</code></td><td>Interface <code>JadwalStore</code> + implementasi SQLite <code>JadwalDbStore</code> (singleton)</td></tr>
+<tr><td><code>lib/main.dart</code></td><td><code>AnemiaApp</code> + param <code>jadwalStore</code> (injectable); HomeShell simpan/pulihkan tab terakhir; JadwalPage: spinner loading + toggle/hapus by-id</td></tr>
+<tr><td><code>test/fakes/in_memory_jadwal_store.dart</code></td><td>Fake store untuk semua widget test</td></tr>
+<tr><td><code>test/jadwal_model_test.dart</code></td><td>+ test <strong>persisten</strong>: model baru dengan store sama → data lama kebaca</td></tr>
+<tr><td><code>test/widget_test.dart</code></td><td>+ test tab terakhir; semua test inject fake store + <code>SharedPreferences.setMockInitialValues</code></td></tr>
+</table>
+
+<p>Package baru: <code>sqflite 2.4.4</code>, <code>shared_preferences 2.5.5</code>, <code>path 1.9.1</code>. Total test sekarang <strong>12</strong> (semua pass).</p>
+
+<h2>Tugas praktik (10 menit)</h2>
+<ol>
+<li><code>flutter run</code> → Beranda → Silvi → <strong>Catat ke Jadwal</strong> → tab Jadwal → centang → telpon tombol <strong>q</strong> buat keluar app.</li>
+<li>Buka app lagi → tab Jadwal → <strong>data masih ada</strong> (persist SQLite!). Ini bedanya dari Modul 9.</li>
+<li>Pindah ke tab Direktori → keluar app → buka lagi → app <strong>balik ke tab Direktori</strong> (SharedPreferences).</li>
+<li>Di tab Jadwal: hapus satu item (ikon 🗑), centang beberapa, cobain <strong>Hapus Semua Selesai</strong>.</li>
+<li><strong>Tantangan dosen (opsional):</strong> kolom <code>kategori</code> di tabel + filter per kategori — sekarang lo punya toolset CRUD lengkap buat ngerjainnya.</li>
+</ol>
+
+<blockquote>Catatan jujur: isi tabel jadwal lo beneran nyimpen di database SQLite perangkat (<code>anemia_jadwal.db</code>). Di final project, data pasien + hasil lab juga bakal dilewatin jalur yang sama (atau API asli — pilihan M16).</blockquote>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Data kecil key-value (setting, flag) pakai…</h3>
+<button class="opt" data-q="q1" data-correct="true">SharedPreferences</button>
+<button class="opt" data-q="q1">SQLite</button>
+<button class="opt" data-q="q1">JSONPlaceholder</button>
+<p class="explain">SharedPreferences = Map persisten buat data primitif kecil; SQLite buat data terstruktur/relasional.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: SQLite nggak punya tipe bool, jadi selesai disimpan sebagai…</h3>
+<button class="opt" data-q="q2" data-correct="true">INTEGER 0/1</button>
+<button class="opt" data-q="q2">TEXT 'selesai'</button>
+<button class="opt" data-q="q2">REAL 0.0/1.0</button>
+<p class="explain"><code>selesai ? 1 : 0</code> di toMap, dibaca balik dengan <code>m['selesai'] == 1</code>.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Kenapa JadwalModel pake interface JadwalStore, bukan langsung sqflite?</h3>
+<button class="opt" data-q="q3" data-correct="true">sqflite butuh plugin yang nggak ada di widget test</button>
+<button class="opt" data-q="q3">biar app lebih berat</button>
+<button class="opt" data-q="q3">SQLite nggak dipakai di produksi</button>
+<p class="explain">Test inject fake store in-memory; produksi pakai JadwalDbStore. Logika bisnis jadi bisa diuji offline (dependency injection).</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Ilangnya data setelah app ditutup? Solusinya…</h3>
+<button class="opt" data-q="q4" data-correct="true">simpan ke SQLite/SharedPreferences</button>
+<button class="opt" data-q="q4">setState lagi</button>
+<button class="opt" data-q="q4">bikin FutureBuilder</button>
+<p class="explain">State di memori (ChangeNotifier) ilang pas proses mati — makanya persist ke disk.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Operasi JadwalModel pindah dari index ke…</h3>
+<button class="opt" data-q="q5" data-correct="true">id primary key</button>
+<button class="opt" data-q="q5">urutan list</button>
+<button class="opt" data-q="q5">nama pasien</button>
+<p class="explain">Setelah load ulang dari DB, urutan bisa beda — id (primary key) yang aman untuk update/hapus.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://pub.dev/packages/sqflite">pub.dev: sqflite</a> (API lengkap database), <a href="https://pub.dev/packages/shared_preferences">pub.dev: shared_preferences</a>, dan dasar <a href="https://www.sqlite.org/lang.html">SQLite: SQL syntax</a>. Cara ngetes database Flutter tanpa plugin (in-memory fake + interface) ada di <a href="https://docs.flutter.dev/testing">Flutter: Testing</a>.</p>
+
+<p>Sebelumnya: <a href="0010-rest-api.html">Lesson 010 — REST API &amp; HTTP</a>.</p>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

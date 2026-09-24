@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 012 — Pengelolaan Media (Image, Audio, File)</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 012 · Modul 12 · Pengelolaan Media — Image, Audio, File</p>
+<h1>Stub "Input Lab" di dashboard akhirnya jadi beneran 📷</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/media.html">Modul 12: Pengelolaan Media (Image, Audio, File)</a>.</p>
+
+<p>Sejak awal app ini punya menu cepat <strong>"Input Lab"</strong> yang cuma nampilin SnackBar <em>"menyusul di modul berikutnya"</em> 😅. Nah, modul ini penutupnya: mini-project dosen (Galeri Foto Pribadi) gue adaptasi jadi <strong>"Galeri Hasil Lab"</strong> — simpen foto hasil cek lab / bukti periksa, ambil dari kamera atau galeri, disimpan <strong>permanen</strong> di direktori dokumen perangkat, bisa dihapus (dengan konfirmasi), dan tiap foto otomatis dikasih label tanggal.</p>
+
+<h2>Tools dari modul ini</h2>
+<table>
+<tr><th>Package</th><th>Gunanya</th><th>Di app kita</th></tr>
+<tr><td><code>image_picker</code></td><td>Ambil foto: kamera / galeri → <code>XFile</code></td><td>✅ Dipakai (camera + gallery)</td></tr>
+<tr><td><code>path_provider</code></td><td>Direktori app: Documents vs Temporary</td><td>✅ Dipakai (simpan permanen)</td></tr>
+<tr><td><code>file_picker</code></td><td>Pilih file apa aja (PDF, gambar, dll)</td><td>⏳ Teori dulu — buat upload laporan PDF hasil lab nanti kalau final project butuh</td></tr>
+<tr><td><code>audioplayers</code></td><td>Putar audio (URL/asset), stream posisi</td><td>⏳ Teori — audio belum ada kebutuhan natural di app anemia (dicatat jujur)</td></tr>
+</table>
+
+<h2>Permission</h2>
+<pre><code>&lt;!-- AndroidManifest.xml: dibaca dari dosen + deviasi dicatat --&gt;
+&lt;uses-permission android:name="android.permission.INTERNET" /&gt;              &lt;!-- M10 --&gt;
+&lt;uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /&gt;     &lt;!-- M12, Android 13+ granular --&gt;</code></pre>
+<p>Dosen minta daftar <code>CAMERA</code> + <code>READ_EXTERNAL_STORAGE</code> + <code>READ_MEDIA_*</code> lengkap. <strong>Deviasi tercatat:</strong> <code>image_picker</code> di Android jalan lewat <em>intent sistem</em> (Activity kamera / photo picker) — jadi permission CAMERA &amp; storage <strong>nggak wajib</strong>; kalau dipasang tapi nggak dipakai, malah lint warning di release build. Yang masuk cuma <code>READ_MEDIA_IMAGES</code> (galeri). iOS butuh <code>NSCameraUsageDescription</code> + <code>NSPhotoLibraryUsageDescription</code> di Info.plist (dari dosen, di bagian teori).</p>
+
+<h2>Ambil foto + simpan permanen</h2>
+<pre><code>final picked = await _picker.pickImage(
+  source: ImageSource.camera,   // atau .gallery
+  imageQuality: 80,             // kompres 80% — hemat storage
+  maxWidth: 1280,
+);
+if (picked == null) return;     // user batal
+
+final dir = await getApplicationDocumentsDirectory();
+final nama = 'foto_${DateTime.now().millisecondsSinceEpoch}.jpg';
+await File(picked.path).copy(join(dir.path, nama)); // salin dari cache → dokumen
+</code></pre>
+<p><code>pickImage</code> ngasih file di <strong>cache sementara</strong> — kalau nggak dicopy, bisa ilang/kena bersihin sistem. Beda direktori: <code>getTemporaryDirectory</code> (boleh ilang) vs <code>getApplicationDocumentsDirectory</code> (persisten, ini yang kita pakai).</p>
+
+<h2>Service testable (pola yang sama kayak M10/M11)</h2>
+<pre><code>class GaleriLabService {
+  GaleriLabService({Future&lt;Directory&gt; Function()? getDir})
+      : _getDir = getDir ?? getApplicationDocumentsDirectory;
+  //       ^ produksi: direktori asli;  test: folder temp — plugin nggak perlu
+}</code></pre>
+<p>Satu pattern yang kita terapkan terus sejak M10: <strong>dependency injection</strong>. <code>getApplicationDocumentsDirectory</code> butuh plugin native yang nggak ada di widget test, jadi biar test jalan offline, service nerima fungsi penyedia direktori yang bisa diganti.</p>
+
+<h2>Tantangan dosen → yang gue ambil &amp; skip</h2>
+<table>
+<tr><th>Tantangan</th><th>Status</th><th>Catatan</th></tr>
+<tr><td>1. Long-press → hapus + AlertDialog konfirmasi</td><td>✅</td><td>Long-press foto → dialog "Hapus foto ini?" → <code>File.delete()</code> → reload → SnackBar hijau</td></tr>
+<tr><td>2. Overlay tanggal di foto</td><td>✅</td><td>Nama file <code>foto_&lt;timestampMs&gt;.jpg</code> → <code>tanggalDariNamaFile()</code> → label "24 Sep 2026, 14:30" di pojok thumbnail</td></tr>
+<tr><td>3. Audio Recorder</td><td>⏳ Skip</td><td>Nggak ada kebutuhan record audio di app anemia — jujur, nggak maksa.</td></tr>
+<tr><td>4. Bonus share_plus</td><td>⏳ Skip</td><td>Nanti — "share hasil lab ke dokter" itu fitur final-project yang bagus, tapi nggak digeber sekarang (jaga RAM & scope).</td></tr>
+</table>
+
+<h2>Pelajaran terbesar modul ini: IO asli ≠ mock di widget test</h2>
+<p>Test file, gambar, dan delete itu <strong>IO nyata</strong> — beda kelas dari test M10 (MockClient = microtask doang). Widget test jalan di zona <code>FakeAsync</code>: file yang kebuka/ke-delete nggak akan pernah "rampung" tanpa bantuan. Tiga trik yang dipakai:</p>
+<ol>
+<li><strong>Seeding sync</strong> — <code>writeAsBytesSync</code>/<code>createTempSync</code> biar zone-proof (sync jalan di mana aja).</li>
+<li><code>tester.runAsync()</code> — buat kasih <strong>real time</strong> ke pipeline IO. Penting: satu runAsync cuma memajukan satu "hop" (delete kelar di OS → kontinuasinya antri microtask FakeAsync → cuma jalan pas pump → hop berikutnya mulai). Jadi harus <strong>alternasi pump ↔ runAsync</strong> berulang — helper <code>settleDenganIO()</code>.</li>
+<li><code>errorBuilder</code> di <code>Image.file</code> — foto korup/decode error jadi placeholder, bukan exception nyembur ke console. Di Windows, file yang megang handle gambar juga ketauan asiknya: <code>delete()</code> kena <code>PathAccessException errno 32</code> kalau read gambar belum kelar.</li>
+</ol>
+
+<h2>Yang berubah di project</h2>
+<table>
+<tr><th>File</th><th>Isi</th></tr>
+<tr><td><code>lib/services/galeri_service.dart</code></td><td><code>GaleriLabService</code> (muatSemua / simpanDari, getDir injectable) + parser <code>tanggalDariNamaFile()</code></td></tr>
+<tr><td><code>lib/screens/galeri_screen.dart</code></td><td>GaleriLabPage: grid foto + overlay tanggal, FAB kamera/galeri, long-press hapus + dialog, empty state, errorBuilder, dialog preview</td></tr>
+<tr><td><code>lib/screens/dashboard_screen.dart</code></td><td>Tile "Input Lab" sekarang push GaleriLabPage (yang lain tetap SnackBar menyusul)</td></tr>
+<tr><td><code>android/.../AndroidManifest.xml</code></td><td>+ <code>READ_MEDIA_IMAGES</code></td></tr>
+<tr><td><code>pubspec.yaml</code></td><td>+ <code>image_picker</code>, <code>path_provider</code></td></tr>
+<tr><td><code>test/galeri_service_test.dart</code></td><td>3 unit test offline (list filter+sort, simpan, parser)</td></tr>
+<tr><td><code>test/galeri_widget_test.dart</code></td><td>3 widget test: tampil+overlay, empty state, long-press→hapus (dengan IO real)</td></tr>
+</table>
+
+<p>Total test sekarang <strong>18</strong> (semua pass, <code>--concurrency=1</code>) + <code>flutter analyze</code> No issues.</p>
+
+<h2>Tugas praktik (10 menit)</h2>
+<ol>
+<li><code>flutter run</code> → Beranda → tap tile <strong>Input Lab</strong> → Galeri Hasil Lab kebuka (nggak ada lagi "menyusul" ✨).</li>
+<li>Tap ikon kamera 📷 di emulator → ambil foto (atau pilih dari galeri). Foto masuk grid dengan label tanggal.</li>
+<li>Tutup app &amp; buka lagi → <strong>foto masih ada</strong> (tersimpan permanen di direktori dokumen).</li>
+<li>Long-press satu foto → coba "Batal", terus ulangi → "Hapus" → foto hilang + SnackBar hijau.</li>
+<li>Tap foto → preview besar. (Bonus: coba hapus pas galeri lagi ke-load — error state merah harusnya muncul kalau gagal.)</li>
+</ol>
+
+<blockquote>Catatan jujur: foto lo nyimpen di dalam folder internal app (nggak nyampur sama galeri HP) — itu keputusan yang benar buat data medis: app bisa dapet izin baca, tapi hasilnya nggak gampang bocor ke aplikasi lain.</blockquote>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Hasil pickImage() ditaruh di cache sementara. Biar nggak ilang, harus…</h3>
+<button class="opt" data-q="q1" data-correct="true">copy ke getApplicationDocumentsDirectory()</button>
+<button class="opt" data-q="q1">setState doang</button>
+<button class="opt" data-q="q1">simpan ke SharedPreferences</button>
+<p class="explain">Picker kasih file di cache yang bisa dibersihin sistem; copy ke direktori dokumen biar persisten.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Kenapa GaleriLabService nerima getDir yang bisa di-inject?</h3>
+<button class="opt" data-q="q2" data-correct="true">path_provider butuh plugin yang nggak ada di widget test</button>
+<button class="opt" data-q="q2">biar file bisa disimpen dua tempat sekaligus</button>
+<button class="opt" data-q="q2">nggak ada alasan, cuma kebiasaan</button>
+<p class="explain">Sama kayak JadwalStore di M11: produksi pakai path asli, test inject folder temp — logika teruji offline.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Widget test galeri butuh runAsync BERULANG karena…</h3>
+<button class="opt" data-q="q3" data-correct="true">tiap hop IO: selesai di real time, lanjutnya baru jalan pas pump</button>
+<button class="opt" data-q="q3">biar test-nya lama</button>
+<button class="opt" data-q="q3">biar gambar ke-compress</button>
+<p class="explain">IO asli (delete/file stream) cuma maju di real time (runAsync); kontinuasinya di microtask FakeAsync yang jalan pas pump — jadi harus bergantian.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Permission CAMERA nggak dipasang karena…</h3>
+<button class="opt" data-q="q4" data-correct="true">image_picker pakai intent sistem, CAMERA nggak wajib + bikin lint warning</button>
+<button class="opt" data-q="q4">kamera emulator rusak</button>
+<button class="opt" data-q="q4">Flutter nggak bisa kamera</button>
+<p class="explain">Intent Activity kamera jalan tanpa izin CAMERA di manifest; pasang tapi tak terpakai = "UnusedPermission" di release build.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Tantangan dosen yang di-lewatin dengan alasan jujur?</h3>
+<button class="opt" data-q="q5" data-correct="true">Audio Recorder — nggak ada kebutuhan record audio di app anemia</button>
+<button class="opt" data-q="q5">Hapus long-press — terlalu susah</button>
+<button class="opt" data-q="q5">Overlay tanggal — nggak berguna</button>
+<p class="explain">Audio nggak nyambung ke konteks app; fitur 1 &amp; 2 malah masuk (bikin galeri makin usable).</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca API lengkap <a href="https://pub.dev/packages/image_picker">pub.dev: image_picker</a> (ImageSource, XFile, pickMultiImage) dan <a href="https://pub.dev/packages/path_provider">pub.dev: path_provider</a> (direktori app lintas platform). Materi file_picker &amp; audioplayers ada di halaman modul dosen &amp; di <a href="https://pub.dev/packages/file_picker">pub.dev: file_picker</a> dan <a href="https://pub.dev/packages/audioplayers">pub.dev: audioplayers</a>. Cara ngetes widget dengan IO asli: <a href="https://docs.flutter.dev/testing">Flutter: Testing</a> (topik testWidgets + zona async).</p>
+
+<p>Sebelumnya: <a href="0011-local-storage.html">Lesson 011 — Local Storage (SQLite &amp; SharedPreferences)</a>.</p>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

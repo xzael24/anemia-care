@@ -1,0 +1,10 @@
+# Widget Dasar Flutter — selesai (Modul 6)
+
+Modul 6 selesai: teori dari materi dosen (widget-dasar.html) diterapkan dengan mengganti konten `lib/main.dart` dari app "Halo Mahasiswa!" (Modul 1) menjadi **Kartu Pasien Anemia** — profile card mirip contoh dosen tapi untuk pasien (Silvi Rahmawati, Hb 10,2, tombol Hasil Lab/Jadwal/Follow). Widget yang dipakai: Scaffold/AppBar, Text+TextStyle, Container+BoxDecoration (borderRadius, boxShadow), Row/Column + SizedBox spacers, Icon (bloodtype/favorite/medication), Image.network dengan errorBuilder fallback, ElevatedButton(.icon)/OutlinedButton. `flutter test` (1 test, mengecek teks-teks kunci) pass, `flutter analyze` No issues.
+
+## Implications
+- Keputusan arsitektur: dosen menyuruh project terpisah tiap modul; kita sengaja **satu project = satu app anemia yang tumbuh**. Alasan: misi mahasiswa (bikin app sendiri), bukan sekadar ikut modul. Ini deviasi sadar yang dicatat di NOTES.md.
+- `errorBuilder` pada Image.network ditanamkan sejak awal — kebiasaan yang bakal menyelamatkan app dari crash layout saat offline/degraded network.
+- `ClipOval` + `Image.network` dipakai menggantikan `CircleAvatar` ber-`NetworkImage` semata-mata karena widget test memblokir HTTP (400) dan tanpa errorBuilder test bakal gagal. Pelajaran teknikal kecil-tapi-berguna tentang interaksi "kode yang benar di runtime vs behavior di test".
+- Test direwrit agar mendampingi UI baru (mencari teks 'Silvi Rahmawati', tombol 'Hasil Lab', 'Follow') — pola: tiap kali UI berubah, test ikut berubah. Ini menyambung ke Modul 13 (Testing).
+- Zona perkembangan berikutnya: Layout & Responsive (Modul 7) — Expanded/Flexible, ListView, GridView, MediaQuery. Kartu pasien sekarang statis; modul berikut bikin halaman yang menyesuaikan ukuran layar & bisa di-scroll (penting untuk HP murah/resolusi kecil).

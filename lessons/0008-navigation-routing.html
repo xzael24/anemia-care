@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 008 — Navigation &amp; Routing</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 008 · Modul 8 · Navigation &amp; Routing</p>
+<h1>Dashboard anemia sekarang multi-halaman</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/navigation-routing.html">Modul 8: Navigation &amp; Routing</a>.</p>
+
+<p>App beneran butuh lebih dari satu halaman. Modul ini ngajarin cara pindah-pindah halaman — dan buat missi kita, tantangan dosen (Katalog Produk) kita ubah jadi <strong>Katalog Pasien</strong>: klik pasien di daftar → halaman detail → pilih "Catat ke Jadwal" → balik ke dashboard dengan data. Kebetulan pas banget buat app pemantauan anemia. 🩸</p>
+
+<h2>Konsep: Stack Navigation 🥞</h2>
+<p>Halaman di-flutter dikelola seperti <strong>tumpukan</strong>. Buka halaman baru = <code>push</code> ke atas tumpukan. Tombol back = <code>pop</code> dari atas:</p>
+<pre><code>[ DetailPasien ]  ← di push ke atas (terlihat)
+[ Dashboard    ]
+[ HomeShell    ]  ← paling bawah (pertama kali dibuka)</code></pre>
+
+<h2>1. Navigator.push &amp; pop — paling dasar</h2>
+<pre><code>// Pindah halaman
+Navigator.push(context,
+  MaterialPageRoute(builder: (_) =&gt; const HalamanKedua()),
+);
+
+// Balik (atau biarin tombol back device yang handle)
+Navigator.pop(context);</code></pre>
+
+<h2>2. Passing data → halaman baru</h2>
+<p>Kirim lewat <strong>parameter constructor</strong> halaman tujuan:</p>
+<pre><code>class DetailPasienPage extends StatelessWidget {
+  final String nama;
+  final int umur;
+  final double hb;
+
+  const DetailPasienPage({super.key, required this.nama, required this.umur, required this.hb});
+  ...
+}</code></pre>
+<pre><code>Navigator.push(context,
+  MaterialPageRoute(builder: (_) =&gt; DetailPasienPage(
+    nama: 'Silvi Rahmawati', umur: 22, hb: 10.2,
+  )),
+);</code></pre>
+
+<h2>3. Return data — halaman baru balikin hasil</h2>
+<p><code>Navigator.push</code> mengembalikan <code>Future</code> yang resolve saat halaman di-pop dengan data. Ingat <code>async/await</code> (Modul 5)? Ini dia dipakainya:</p>
+<pre><code>// Halaman pemanggil — tunggu hasilnya
+final hasil = await Navigator.push&lt;String&gt;(
+  context,
+  MaterialPageRoute(builder: (_) =&gt; const DetailPasienPage(...)),
+);
+
+if (hasil != null &amp;&amp; context.mounted) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('$hasil ditambahkan ke jadwal')),
+  );
+}
+
+// Halaman tujuan — balikin data lewat pop
+onPressed: () =&gt; Navigator.pop(context, nama),</code></pre>
+<p><code>context.mounted</code> penting: ngecek widget masih nempel di tree sebelum pakai context setelah <code>await</code> (biar aman dari "use_build_context_synchronously").</p>
+
+<h2>4. Named routes — biar rapi kalau halamannya banyak</h2>
+<pre><code>MaterialApp(
+  initialRoute: '/',
+  routes: {
+    '/': (_) =&gt; const HomeShell(),
+    '/tentang': (_) =&gt; const TentangPage(),
+  },
+)
+
+Navigator.pushNamed(context, '/tentang');       // pindah
+Navigator.pushReplacementNamed(context, '/home'); // replace (login → home)
+Navigator.popUntil(context, ModalRoute.withName('/')); // pop sampe route tertentu</code></pre>
+
+<h2>5. BottomNavigationBar — tab bawah (Instagram ala anemia)</h2>
+<p>Tab aktif disimpan di <code>StatefulWidget</code> — preview state management yang nanti penuh di Modul 9:</p>
+<pre><code>class _HomeShellState extends State&lt;HomeShell&gt; {
+  int _index = 0;
+  // ...
+
+  body: halaman[_index],
+  bottomNavigationBar: NavigationBar(
+    selectedIndex: _index,
+    onDestinationSelected: (i) =&gt; setState(() =&gt; _index = i),
+    destinations: const [
+      NavigationDestination(icon: Icon(Icons.home), label: 'Beranda'),
+      NavigationDestination(icon: Icon(Icons.calendar_month), label: 'Jadwal'),
+      NavigationDestination(icon: Icon(Icons.info_outline), label: 'Info'),
+    ],
+  ),</code></pre>
+
+<h2>6. Drawer — menu samping</h2>
+<pre><code>Scaffold(
+  drawer: Drawer(child: ListView(children: [
+    const DrawerHeader(
+      decoration: BoxDecoration(color: Colors.red),
+      child: Text('Halo, Silvi! 👋', style: TextStyle(color: Colors.white, fontSize: 20)),
+    ),
+    ListTile(
+      leading: const Icon(Icons.info_outline),
+      title: const Text('Tentang Aplikasi'),
+      onTap: () { Navigator.pop(context); Navigator.pushNamed(context, '/tentang'); },
+    ),
+  ])),
+)</code></pre>
+
+<h2>Yang berubah di project</h2>
+<table>
+<tr><th>File</th><th>Isi</th></tr>
+<tr><td><code>lib/main.dart</code></td><td>Named routes + <code>HomeShell</code> (NavigationBar 3 tab) + halaman Jadwal &amp; Info</td></tr>
+<tr><td><code>lib/screens/dashboard_screen.dart</code></td><td>Dashboard dari M7 + Drawer + pasien bisa diklik (push &amp; await hasil pop)</td></tr>
+<tr><td><code>lib/screens/detail_pasien_screen.dart</code></td><td>Detail pasien — terima data via constructor, pop dengan data</td></tr>
+<tr><td><code>lib/screens/tentang_screen.dart</code></td><td>Halaman Tentang — named route <code>/tentang</code></td></tr>
+<tr><td><code>test/widget_test.dart</code></td><td>3 test: dashboard, flow navigasi lengkap, drawer + named route</td></tr>
+</table>
+
+<h2>Tugas praktik (10 menit)</h2>
+<ol>
+<li><code>flutter run</code> → klik <strong>Silvi Rahmawati</strong> di daftar → halaman detail kebuka → tekan <strong>Catat ke Jadwal</strong> → balik ke dashboard + SnackBar muncul. Itu flow lengkap push/pop + passing/return data.</li>
+<li>Geser dari pinggir kiri / tap ikon <strong>☰</strong> → Drawer kebuka → <strong>Tentang Aplikasi</strong> → halaman Tentang (named route).</li>
+<li>Pindah tab bawah: Beranda ↔ Jadwal ↔ Info — perhatiin tab aktif &amp; kontennya.</li>
+<li><strong>Tantangan dosen (versi anemia):</strong> tambah tombol "Hapus dari Daftar" di DetailPasienPage yang <code>pop(context, 'hapus:...')</code>, dan di dashboard tampilkan SnackBar beda kalau prefix-nya hapus.</li>
+</ol>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Buka halaman baru = … ke stack</h3>
+<button class="opt" data-q="q1" data-correct="true">push</button>
+<button class="opt" data-q="q1">pop</button>
+<button class="opt" data-q="q1">replace</button>
+<p class="explain"><code>push</code> menumpuk halaman baru. <code>pop</code> membuang halaman teratas. Halaman dikelola seperti tumpukan.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Ngirim data ke halaman baru lewat…</h3>
+<button class="opt" data-q="q2" data-correct="true">parameter constructor</button>
+<button class="opt" data-q="q2">global variable</button>
+<button class="opt" data-q="q2">SnackBar</button>
+<p class="explain">Halaman tujuan terima data sebagai <code>required</code> parameters constructor — cara paling simpel &amp; jelas.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Halaman tujuan balikin data ke halaman sebelumnya lewat…</h3>
+<button class="opt" data-q="q3" data-correct="true">Navigator.pop(context, data)</button>
+<button class="opt" data-q="q3">Navigator.push(context, data)</button>
+<button class="opt" data-q="q3">setState</button>
+<p class="explain"><code>pop(context, data)</code> — argumen kedua pop adalah hasil yang di-await pemanggil.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Daftar rute terpusat di…</h3>
+<button class="opt" data-q="q4" data-correct="true">MaterialApp.routes</button>
+<button class="opt" data-q="q4">Scaffold</button>
+<button class="opt" data-q="q4">AppBar</button>
+<p class="explain">Named routes didaftarkan di <code>MaterialApp.routes</code> lalu dipanggil dengan <code>pushNamed</code>.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Setelah await, sebelum pakai context harus…</h3>
+<button class="opt" data-q="q5" data-correct="true">cek context.mounted</button>
+<button class="opt" data-q="q5">sleep dulu</button>
+<button class="opt" data-q="q5">tidak perlu apa-apa</button>
+<p class="explain"><code>context.mounted</code> memastikan widget masih ada di tree setelah <code>await</code> — mencegah error pakai context yang sudah mati.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://docs.flutter.dev/ui/navigation">Flutter docs: Navigation</a> (Navigator, push/pop, named routes) dan <a href="https://docs.flutter.dev/ui/navigation/returning-data">Flutter docs: Return data from a screen</a> (pola await + pop dengan data).</p>
+
+<p>Sebelumnya: <a href="0007-layout-responsive.html">Lesson 007 — Layout &amp; Responsive</a>.</p>
+
+<blockquote>Bingung kenapa tab "Jadwal" nggak bisa dibuka dari menu grid? Di misi kita tab dan halaman detail itu jalur navigasi yang beda (tab = ganti konten shell, detail = push ke atas). Nanti pas Modul 9 (state management) alur begini makin kerasa bedanya.</blockquote>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# REST API & HTTP — selesai (Modul 10)
+
+Modul 10 selesai: teori dari materi dosen (rest-api.html) diterapkan. Keputusan utama: **bonus dosen (/users JSONPlaceholder) diangkat jadi praktik utama** — tab "Direktori" baru di NavigationBar berisi direktori pasien yang di-fetch beneran dari API. Struktur: `UserPasien` model + fromJson (id/nama/email/kota/website, parsing address.city yang nested), `PasienService` (GET /users + POST /users, **client http injectable** sehingga test bisa pakai MockClient tanpa server). DirektoriScreen: FutureBuilder 3 keadaan (loading/error+tombol Coba lagi/sukses), RefreshIndicator pull-to-refresh, Future disimpan di initState (tidak di build). DetailDirektoriPage (tantangan 1) dan TambahUserPage (tantangan 2-3: 2 TextField → POST → SnackBar hijau berhasil / merah gagal). AndroidManifest utama + INTERNET permission. `http` 1.6.0. Total 10 test pass (3 unit service + 2 widget direktori + 5 lama), analyze No issues.
+
+## Implications
+- **Bug nyata ketemu & diperbaiki**: `setState(() => _future = service.getUsers())` (arrow) mengembalikan Future — setState meng-assert itu. Fix block body `setState(() { ... })`. Ini pelajaran bagus tentang "test menangkap bug yang analyze tidak", dan kenapa kita rutin menulis widget test tiap modul.
+- **constraint memori 7.7GB memaksa `flutter test --concurrency=1`**: 4 test file paralel → 4 binding Flutter → OOM compile (VM Dart crash). Solusi satu baris, dan ini sekarang jadi kebiasaan wajib di sini — dicatat di NOTES.md.
+- **`http.Client` injectable = pola testability**: service menerima client, tes pakai `MockClient` dari package http (tanpa dependency baru). Fondasi buat Modul 13 (Testing) — mock FAT, dan juga persiapan kalau nanti ganti ke server asli.
+- **Data masih demo (JSONPlaceholder)**: app jujur menampilkan keterangan "data demo" di halaman detail. Gap menuju data beneran akan ditutup Modul 11 (SQLite lokal) dan final project (server asli).
+- Deviasi lanjutan: challange dosen (pembaca /posts + dialog) diganti direktori /users — bentuk sama (GET+parse+FutureBuilder), isi sesuai missi.
+- Zona perkembangan berikutnya: Local Storage/SQLite (Modul 11) — data jadwal pemantauan yang sekarang cuma di memori (JadwalModel) bakal persist ke database lokal (sqflite), dan bisa jadi ganti data pasien hardcoded di dashboard.

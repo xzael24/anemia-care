@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 004 — Function &amp; OOP</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 004 · Modul 4 · Function &amp; OOP di Dart</p>
+<h1>Pasien anemia jadi class, paham widget nggak terasa</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/fungsi-oop.html">Modul 4: Function &amp; OOP di Dart</a>.</p>
+
+<p><strong>Tulang punggung Flutter.</strong> Di Flutter, <em>semuanya adalah widget, dan setiap widget adalah class</em>. Modul ini yang bikin kode app anemia kamu rapi: data pasien dibungkus jadi <code>class Pasien</code>, alur skrining jadi fungsi, dan modul-modul UI selanjutnya (6+) baru masuk akal setelah kamu paham class.</p>
+
+<h2>1. Function dasar + arrow</h2>
+<pre><code>int tambah(int a, int b) {   // blok biasa, multi-baris
+  return a + b;
+}
+
+int kali(int a, int b) =&gt; a * b;  // arrow: body cuma 1 ekspresi
+
+void log(String pesan) {     // void = nggak ngembaliin nilai
+  print('[LOG] $pesan');
+}</code></pre>
+
+<h2>2. Named &amp; optional parameters ⭐</h2>
+<p>Di Flutter, <strong>semua widget constructor pakai named parameters</strong> — contoh <code>Text('Halo', style: TextStyle(fontSize: 20))</code>. Pahami ini sebelum modul UI:</p>
+<table>
+<tr><th>Jenis</th><th>Dibungkus</th><th>Contoh</th></tr>
+<tr><td>Positional (wajib)</td><td>—</td><td><code>tambah(3, 5)</code></td></tr>
+<tr><td>Named</td><td><code>{}</code></td><td><code>profil(nama: 'Arif', umur: 28)</code> — urutan bebas, <code>required</code> kalau wajib</td></tr>
+<tr><td>Optional positional</td><td><code>[]</code></td><td><code>sapa('Arif', 'Pak')</code> — boleh di-skip, pakai nilai default</td></tr>
+</table>
+
+<h2>3. Class &amp; Object (dengan tema pasien anemia)</h2>
+<pre><code>class Pasien {
+  String nama;
+  double hemoglobin;
+  const batasHb = 12.0;
+
+  Pasien({required this.nama, required this.hemoglobin}); // this.x = langsung assign
+
+  bool get berisikoAnemia =&gt; hemoglobin &lt; batasHb; // getter + logika
+  String info() =&gt; '$nama — Hb $hemoglobin → ${berisikoAnemia ? 'ANEMIA' : 'normal'}';
+}</code></pre>
+<p><strong>Encapsulation:</strong> Dart nggak punya <code>private</code> — gantinya underscore <code>_</code> di depan nama (misal <code>String _kode</code>). Property itu hanya bisa diakses dari file yang sama; dari file lain error.</p>
+
+<h2>4. Inheritance &amp; Polymorphism</h2>
+<pre><code>class Hewan { void suara() =&gt; print('bersuara...'); }
+
+class Kucing extends Hewan {
+  @override
+  void suara() =&gt; print('Meow! 🐱');   // override = ubah perilaku parent
+}</code></pre>
+<p><code>List&lt;Hewan&gt; hewan = [Kucing(), Anjing()];</code> → saat <code>h.suara()</code> dipanggil, Dart otomatis pakai versi sesuai object aslinya. Itu <strong>polymorphism</strong>.</p>
+
+<h2>5. Abstract class — kontrak "harus bisa apa"</h2>
+<pre><code>abstract class Bentuk {
+  double luas();      // tanpa body → WAJIB diimplementasikan child
+  double keliling();
+
+  void info() =&gt; print('...');  // abstract boleh punya method konkret
+}</code></pre>
+<p>Buat <em>kontrak</em> skrining: setiap jenis skrining <strong>harus</strong> bisa bilang "terindikasi atau nggak", tapi caranya beda-beda. <code>implements</code> (bukan <code>extends</code>) dipakai kalau mau paksa implement <em>semua</em> tanpa mewarisi.</p>
+
+<h2>6. Mixin — "tempel" kemampuan, hindari multiple inheritance</h2>
+<pre><code>mixin BisaTerbang { void terbang() =&gt; print('Terbang! ✈️'); }
+class Burung with BisaTerbang { ... }  // dengan keyword with, bisa banyak mixin</code></pre>
+
+<h2>Rangkuman — 4 pilar OOP di Dart</h2>
+<table>
+<tr><th>Pilar</th><th>Cara di Dart</th></tr>
+<tr><td>Encapsulation</td><td>Underscore <code>_nama</code> (private level file)</td></tr>
+<tr><td>Inheritance</td><td><code>extends</code> — warisi dari parent class</td></tr>
+<tr><td>Polymorphism</td><td><code>@override</code> — ubah perilaku method parent</td></tr>
+<tr><td>Abstraction</td><td><code>abstract class</code> — blueprint tanpa implementasi langsung</td></tr>
+</table>
+
+<h2>Tugas praktik (7 menit)</h2>
+<ol>
+<li>Buka &amp; jalankan <code>dart run bin/fungsi_oop_anemia.dart</code> — baca tiap baris output sambil cocokin sama baris kodenya.</li>
+<li><strong>Ubah no. 1:</strong> tambah pasien baru <code>Marsya</code> (Hb 13.5) di <code>main()</code> dan print <code>marsya.info()</code> — harus keluar "normal".</li>
+<li><strong>Ubah no. 2:</strong> ganti <code>SkriningKelelahan(true)</code> jadi <code>SkriningKelelahan(false)</code> — lihat ringkasannya berubah.</li>
+<li><strong>Ubah no. 3:</strong> coba <code>Skrining()</code> langsung (instance abstract) — baca error-nya. Error itu bukti abstraction bekerja. Kembalikan lagi.</li>
+</ol>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Function yang tidak mengembalikan nilai, tipe kembaliannya…</h3>
+<button class="opt" data-q="q1" data-correct="true">void</button>
+<button class="opt" data-q="q1">int</button>
+<button class="opt" data-q="q1">null</button>
+<p class="explain"><code>void</code> = "tidak ada nilai kembali". <code>int</code>/<code>null</code> salah — null pun itu sebuah nilai.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Named parameter dibungkus dengan…</h3>
+<button class="opt" data-q="q2" data-correct="true">{}</button>
+<button class="opt" data-q="q2">[]</button>
+<button class="opt" data-q="q2">()</button>
+<p class="explain"><code>{}</code> = named, <code>[]</code> = optional positional, <code>()</code> = daftar parameter biasa.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: <code>this.nama</code> di constructor artinya…</h3>
+<button class="opt" data-q="q3" data-correct="true">assign property</button>
+<button class="opt" data-q="q3">bikin private</button>
+<button class="opt" data-q="q3">return otomatis</button>
+<p class="explain"><code>this.nama</code> langsung meng-assign parameter ke property class, menyingkat penulisan.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Keyword untuk mewarisi dari class lain…</h3>
+<button class="opt" data-q="q4" data-correct="true">extends</button>
+<button class="opt" data-q="q4">with</button>
+<button class="opt" data-q="q4">implements</button>
+<p class="explain"><code>extends</code> = wariskan. <code>with</code> = mixin. <code>implements</code> = paksa implementasikan.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Keyword untuk menempelkan mixin…</h3>
+<button class="opt" data-q="q5" data-correct="true">with</button>
+<button class="opt" data-q="q5">new</button>
+<button class="opt" data-q="q5">super</button>
+<p class="explain"><code>with</code> dipakai setelah class: <code>class Bebek with BisaTerbang { }</code>.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://dart.dev/language/functions">Dart docs: Functions</a> (return type, arrow, named/optional/required parameters) dan <a href="https://dart.dev/language/classes">Dart docs: Classes</a> (constructor, getter, inheritance, abstract, mixin). Materi dosen kamu ini ringkasannya — yang resmi lebih dalam.</p>
+
+<p>Referensi kilat: <a href="../reference/0001-dart-flutter-dasar.html">cheat sheet Dart dasar</a>. Sebelumnya: <a href="0003-variabel-tipe-data.html">Lesson 003 — Variabel &amp; Tipe Data</a>.</p>
+
+<blockquote>Bingung bedanya <code>extends</code> vs <code>implements</code>, atau kenapa pakai getter bukan method? Tanya ke aku — konsep ini yang paling sering bikin bingung sebelum masuk widget.</blockquote>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

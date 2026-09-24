@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 006 — Widget Dasar Flutter</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 006 · Modul 6 · Widget Dasar Flutter</p>
+<h1>Halaman app anemia mulai kelihatan bentuknya</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/widget-dasar.html">Modul 6: Widget Dasar Flutter</a>.</p>
+
+<p>Ini dia momennya: kode mulai jadi <strong>gambar di layar</strong>. Dosen nyaranin bikin project baru per modul — buat kita beda: <strong>satu app anemia yang makin lengkap tiap modul</strong>. Di modul ini "Halo Mahasiswa! 🎓" kita upgrade jadi <strong>Kartu Pasien Anemia</strong> — pakai widget-widget yang lo pelajari di sini.</p>
+
+<h2>Konsep: Widget Tree 🌳</h2>
+<p>UI Flutter = <strong>pohon widget</strong>. Widget punya child, child punya anak lagi:</p>
+<pre><code>MaterialApp
+ └── Scaffold
+      ├── AppBar
+      │    └── Text('Judul')
+      └── body: Center
+                └── Column
+                     ├── Text('Halo')
+                     └── ElevatedButton
+                          └── Text('Klik')</code></pre>
+
+<h2>Widget inti yang lo pakai hari ini</h2>
+<table>
+<tr><th>Widget</th><th>Fungsinya</th><th>Contoh di kartu pasien</th></tr>
+<tr><td><code>MaterialApp</code> + <code>Scaffold</code></td><td>Kerangka Material Design: AppBar, body, dst.</td><td>bingkai aplikasi</td></tr>
+<tr><td><code>AppBar</code></td><td>Title bar</td><td>"Kartu Pasien Anemia"</td></tr>
+<tr><td><code>Text</code> + <code>TextStyle</code></td><td>Menampilkan teks + gaya</td><td>nama &amp; status pasien</td></tr>
+<tr><td><code>Container</code></td><td>Kotak serbaguna (padding, warna, border, shadow)</td><td>body kartu putih bundar</td></tr>
+<tr><td><code>Column</code>/<code>Row</code></td><td>Susun widget vertikal/horizontal</td><td>susunan isi kartu</td></tr>
+<tr><td><code>SizedBox(w/h)</code></td><td>Spacer vertikal/horizontal</td><td>jarak antar elemen</td></tr>
+<tr><td><code>Icon</code></td><td>Ribuan ikon Material</td><td><code>Icons.bloodtype</code> 🩸</td></tr>
+<tr><td><code>Image.network</code></td><td>Gambar dari URL (atau <code>Image.asset</code>)</td><td>foto profil pasien</td></tr>
+<tr><td><code>ElevatedButton</code> dkk.</td><td>Tombol dengan gaya berbeda</td><td>"Hasil Lab", "Follow"</td></tr>
+</table>
+
+<h2>6 widget yang wajib lo inget detailnya</h2>
+
+<h3>Text</h3>
+<pre><code>Text('Silvi Rahmawati',
+  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold));</code></pre>
+
+<h3>Container</h3>
+<pre><code>Container(
+  padding: const EdgeInsets.all(24),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 12)],
+  ),
+  child: ...</code></pre>
+
+<h3>EdgeInsets — cara nulis padding/margin</h3>
+<table>
+<tr><th>Cara</th><th>Makna</th></tr>
+<tr><td><code>EdgeInsets.all(16)</code></td><td>semua sisi 16</td></tr>
+<tr><td><code>EdgeInsets.symmetric(h: 16, v: 8)</code></td><td>kiri-kanan 16, atas-bawah 8</td></tr>
+<tr><td><code>EdgeInsets.only(left: 8)</code></td><td>sisi tertentu saja</td></tr>
+<tr><td><code>EdgeInsets.fromLTRB(8,16,8,0)</code></td><td>Left, Top, Right, Bottom</td></tr>
+</table>
+
+<h3>Column &amp; Row</h3>
+<pre><code>Column(
+  mainAxisSize: MainAxisSize.min,   // selebar isinya, bukan penuh layar
+  children: [
+    const Text('Nama: Silvi'),
+    const SizedBox(height: 8),      // spacer VERTIKAL
+    Row(children: [
+      const Icon(Icons.bloodtype, size: 16),
+      const SizedBox(width: 6),     // spacer HORIZONTAL
+      const Text('Hb 10,2 g/dL'),
+    ]),
+  ],
+)</code></pre>
+
+<h3>Image — network vs asset</h3>
+<pre><code>Image.network('https://picsum.photos/200', fit: BoxFit.cover)
+Image.asset('assets/logo.png')   // daftarkan dulu di pubspec.yaml → flutter pub get</code></pre>
+<p>Catatan dari kode kita: <code>errorBuilder</code> bikin app tetap aman kalau gambar gagal dimuat (offline dsb) — langsung ganti ikon fallback.</p>
+
+<h3>Tombol-tombol</h3>
+<pre><code>ElevatedButton(onPressed: () {}, child: const Text('Simpan'));   // utama
+TextButton(onPressed: () {}, child: const Text('Batal'));        // teks doang
+OutlinedButton(onPressed: () {}, child: const Text('Detail'));   // border
+IconButton(onPressed: () {}, icon: const Icon(Icons.delete));    // ikon
+ElevatedButton.icon(icon: ..., label: const Text('Kirim'));      // ikon + teks</code></pre>
+<p><code>onPressed: null</code> → tombol otomatis ke-disable.</p>
+
+<h2>Mini project hari ini: Kartu Pasien Anemia 🩸</h2>
+<p>Udah kubuat di <code>lib/main.dart</code> — gabungan semua widget di atas, divalidasi <code>flutter analyze</code> (No issues) dan <code>flutter test</code> (pass).</p>
+
+<h2>Tugas praktik (10 menit)</h2>
+<ol>
+<li>Jalankan app: <code>flutter run</code> (emulator/Chrome) — lihat kartu pasien muncul.</li>
+<li><strong>Ubah no. 1:</strong> ganti nama <code>'Silvi Rahmawati'</code> jadi nama sendiri → hot reload <code>r</code> → langsung berubah.</li>
+<li><strong>Ubah no. 2:</strong> ganti <code>colorSchemeSeed: Colors.red</code> jadi <code>Colors.teal</code> → hot reload → warna seluruh app berubah. Itu kekuatan theme.</li>
+<li><strong>Ubah no. 3 (tantangan dosen):</strong> tambah satu baris info pasien (misal umur) + satu tombol baru bebas.</li>
+</ol>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Kerangka Material Design untuk halaman…</h3>
+<button class="opt" data-q="q1" data-correct="true">Scaffold</button>
+<button class="opt" data-q="q1">Container</button>
+<button class="opt" data-q="q1">Column</button>
+<p class="explain"><code>Scaffold</code> = kerangka halaman (AppBar, body, dsb). <code>Container</code> kotak serbaguna, <code>Column</code> penyusun vertikal.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Padding semua sisi sama, pakai…</h3>
+<button class="opt" data-q="q2" data-correct="true">EdgeInsets.all</button>
+<button class="opt" data-q="q2">symmetric</button>
+<button class="opt" data-q="q2">fromLTRB</button>
+<p class="explain"><code>all(16)</code> = empat sisi 16. <code>symmetric</code> beda horizontal/vertikal. <code>fromLTRB</code> empat nilai bebeda.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Susun widget ke bawah (vertikal)…</h3>
+<button class="opt" data-q="q3" data-correct="true">Column</button>
+<button class="opt" data-q="q3">Row</button>
+<button class="opt" data-q="q3">SizedBox</button>
+<p class="explain"><code>Column</code> vertikal, <code>Row</code> horizontal, <code>SizedBox</code> cuma spacer.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Spacer vertikal di dalam Column…</h3>
+<button class="opt" data-q="q4" data-correct="true">SizedBox(height)</button>
+<button class="opt" data-q="q4">SizedBox(width)</button>
+<button class="opt" data-q="q4">EdgeInsets.all</button>
+<p class="explain">Di Column, <code>SizedBox(height)</code> = jarak vertikal. <code>width</code> kepake di Row.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Tombol yang paling menonjol (utama)…</h3>
+<button class="opt" data-q="q5" data-correct="true">ElevatedButton</button>
+<button class="opt" data-q="q5">TextButton</button>
+<button class="opt" data-q="q5">OutlinedButton</button>
+<p class="explain"><code>ElevatedButton</code> = utama (punya background). <code>TextButton</code> teks polos, <code>OutlinedButton</code> berborder.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://docs.flutter.dev/ui/widgets-intro">Flutter docs: Widgets 101</a> (konsep widget tree, Stateless vs Stateful) dan <a href="https://docs.flutter.dev/ui/widgets">Katalog widget lengkap</a> — cek &amp; mainkan sekalian.</p>
+
+<p>Sebelumnya: <a href="0005-collection-async.html">Lesson 005 — Collection &amp; Async</a>.</p>
+
+<blockquote>Widget-nya nge-overflow / "RenderFlex overflowed"? Atau bingung beda Stateless dan Stateful (nanti di Modul 7)? Tanya ke aku — error layout itu salah satu yang paling sering muncul waktu pertama bikin UI.</blockquote>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

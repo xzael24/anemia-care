@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 003 — Variabel &amp; Tipe Data</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 003 · Modul 3 · Variabel &amp; Tipe Data di Dart</p>
+<h1>Data pasien anemia mulai disimpan ke variabel</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/variabel.html">Modul 3: Variabel &amp; Tipe Data di Dart</a>.</p>
+
+<p>Aplikasi itu pada dasarnya cuma <strong>data yang disimpan, diproses, lalu ditampilkan</strong>. Di modul ini kamu belajar wadah data paling dasar di Dart: <strong>variabel</strong> — plus aturan mainnya (tipe data, null safety) yang bakal kamu pakai terus sampai modul 16.</p>
+
+<h2>Kenapa penting buat app anemia kamu? 🩸</h2>
+<p>Nilai <code>hemoglobin</code>, umur pasien, status <em>anemia / normal</em> — semuanya bakal hidup di variabel. Salah pilih tipe data = bug diam-diam (contoh: Hb 10.2 jadi 10 karena dipaksa <code>int</code>). Modul ini yang bikin kamu nggak gampang kena jebakan kayak gitu.</p>
+
+<h2>1. Cara mendeklarasikan variabel</h2>
+<table>
+<tr><th>Cara</th><th>Maksudnya</th><th>Contoh</th></tr>
+<tr><td><code>var</code></td><td>Tipe ditentukan otomatis dari nilainya (<em>type inference</em>)</td><td><code>var hemoglobin = 10.2;</code> → <code>double</code></td></tr>
+<tr><td>Tipe eksplisit</td><td>Kamu yang nentuin tipenya, nggak nebak-nebak</td><td><code>String golonganDarah = 'A';</code></td></tr>
+<tr><td><code>final</code></td><td>Sekali di-assign, nggak bisa diubah (nilai baru ketahuan pas jalan)</td><td><code>final kodePasien = 'PSN-0001';</code></td></tr>
+<tr><td><code>const</code></td><td>Konstanta <em>compile-time</em> (angkanya sudah pasti dari awal)</td><td><code>const batasHbNormal = 12.0;</code></td></tr>
+</table>
+
+<blockquote><strong>final vs const:</strong> <code>final</code> nilainya bisa dihitung saat runtime (misal <code>final sekarang = DateTime.now();</code>), sedangkan <code>const</code> harus sudah ketahuan sebelum program jalan (misal <code>const pi = 3.14;</code>).</blockquote>
+
+<h2>2. Tipe data dasar (built-in types)</h2>
+<table>
+<tr><th>Tipe</th><th>Isinya</th><th>Contoh di app anemia</th></tr>
+<tr><td><code>int</code></td><td>Bilangan bulat</td><td><code>int umur = 22;</code></td></tr>
+<tr><td><code>double</code></td><td>Bilangan desimal</td><td><code>double hemoglobin = 10.2;</code></td></tr>
+<tr><td><code>num</code></td><td>Supertype dari int &amp; double (bisa keduanya)</td><td><code>num nilaiLab = 99;</code></td></tr>
+<tr><td><code>String</code></td><td>Teks</td><td><code>String nama = 'Silvi';</code></td></tr>
+<tr><td><code>bool</code></td><td><code>true</code> / <code>false</code></td><td><code>bool berisikoAnemia = true;</code></td></tr>
+<tr><td><code>dynamic</code></td><td>Bebas ganti tipe kapan aja</td><td><code>dynamic x = 10; x = 'teks';</code></td></tr>
+</table>
+
+<blockquote><code>dynamic</code> itu fleksibel tapi berbahaya — kalau bisa, selalu pilih tipe yang jelas. Kalau di <code>flutter analyze</code> muncul peringatan soal ini, itu lagi nolongin kamu.</blockquote>
+
+<h2>3. String interpolation — $ itu magic</h2>
+<p>Pakai <code>$namaVariabel</code> (atau <code>${ekspresi}</code> untuk kalkulasi) biar teksnya otomatis ke-isi:</p>
+<pre><code>print('Nama: $nama, Hb: $hemoglobin g/dL');
+print('Status: ${hemoglobin &lt; batasHbNormal ? "ANEMIA" : "normal"}');</code></pre>
+
+<h2>4. Collection: List, Map, Set</h2>
+<pre><code>List&lt;String&gt; gejala = ['lemah', 'pucat', 'pusing'];
+gejala.add('sesak napas');          // tambah
+print(gejala.length);               // 4
+
+Map&lt;String, dynamic&gt; hasilLab = {
+  'hemoglobin': 10.2,
+  'mcv': 74.3,
+};
+print(hasilLab['hemoglobin']);      // 10.2
+
+Set&lt;String&gt; golDarahKamar = {'A', 'B', 'O', 'A'};
+print(golDarahKamar);               // {A, B, O} — duplikat auto dibuang</code></pre>
+
+<h2>5. Null Safety — ciri khas Dart modern ⭐</h2>
+<p>Sejak Dart 2.12, variabel <strong>nggak boleh <code>null</code> secara default</strong>. Kalau butuh boleh kosong, kasih tanda <code>?</code>:</p>
+<table>
+<tr><th>Operator</th><th>Makna</th><th>Contoh</th></tr>
+<tr><td><code>?</code></td><td>Variabel boleh null</td><td><code>double? hbSebelum;</code></td></tr>
+<tr><td><code>?.</code></td><td>Akses hanya kalau tidak null (aman)</td><td><code>alamat?.toUpperCase()</code></td></tr>
+<tr><td><code>??</code></td><td>Nilai default kalau null</td><td><code>hbSebelum ?? 'belum ada hasil'</code></td></tr>
+<tr><td><code>!</code></td><td>Paksa non-null — hati-hati, bisa crash</td><td><code>data!.nama</code></td></tr>
+<tr><td><code>late</code></td><td>Tunda inisialisasi non-nullable</td><td><code>late String token;</code></td></tr>
+</table>
+
+<h2>6. Konversi tipe (sering banget kepake)</h2>
+<pre><code>var inputForm = '12.5';              // dari TextField, selalu String
+double hb = double.parse(inputForm); // String → double
+print(hb.toStringAsFixed(1));        // '12.5' (double → String)
+print(hb.toInt());                   // 12 (terpotong, hati-hati kalau data lab!)</code></pre>
+
+<h2>Tugas praktik (5 menit)</h2>
+<ol>
+<li>Buka <code>bin/variabel_anemia.dart</code> yang sudah kubuat — isinya semua materi ini dipakai buat data pasien anemia.</li>
+<li>Jalankan: <code>dart run bin/variabel_anemia.dart</code> — baca keluarannya satu-satu.</li>
+<li><strong>Ubah dan pecahkan 2 hal berikut:</strong>
+  <ul>
+  <li>Ganti <code>var hemoglobin = 10.2;</code> jadi <code>var hemoglobin = 10;</code> — terus cari di output, apakah benar jadi <code>int</code>? (hint: baris "<code>Hb dihitung ulang</code>")</li>
+  <li>Hapus tanda <code>//</code> di depan <code>// kodePasien = 'PSN-0002';</code> — lihat error-nya, terus kembalikan lagi. Error itu justru bukti <code>final</code> bekerja.</li>
+  </ul>
+</li>
+<li>Beres? Lanjut ke kuis di bawah.</li>
+</ol>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: <code>var hemoglobin = 10.2;</code> — tipe <code>hemoglobin</code> adalah…</h3>
+<button class="opt" data-q="q1" data-correct="true">double</button>
+<button class="opt" data-q="q1">int</button>
+<button class="opt" data-q="q1">String</button>
+<p class="explain"><code>var</code> mengambil tipe dari nilainya. Karena 10.2 ada desimalnya, Dart menyimpannya sebagai <code>double</code>.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Kata kunci yang nilainya tidak bisa diubah setelah di-assign…</h3>
+<button class="opt" data-q="q2" data-correct="true">final</button>
+<button class="opt" data-q="q2">var</button>
+<button class="opt" data-q="q2">dynamic</button>
+<p class="explain"><code>final</code> sekali di-assign langsung terkunci. <code>var</code> dan <code>dynamic</code> masih bisa diubah nilainya.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: <code>String? alamat;</code> artinya alamat…</h3>
+<button class="opt" data-q="q3" data-correct="true">boleh null</button>
+<button class="opt" data-q="q3">harus diisi</button>
+<button class="opt" data-q="q3">selalu string</button>
+<p class="explain">Tanda <code>?</code> membuka izin null. Tanpa <code>?</code>, variabel wajib punya nilai sejak awal.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Operator nilai default saat variabel null…</h3>
+<button class="opt" data-q="q4" data-correct="true">??</button>
+<button class="opt" data-q="q4">?.</button>
+<button class="opt" data-q="q4">!</button>
+<p class="explain"><code>??</code> = "kalau null, pakai ini". <code>?.</code> = akses aman, <code>!</code> = paksa non-null (berbahaya).</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://dart.dev/language/variables">Dart docs: Variables</a> (bagian official soal deklarasi, final/const, default values) dan <a href="https://dart.dev/language/built-in-types">Built-in types</a>. Inilah definisi paling bisa dipercaya — materi dosen kamu turunan dari sini.</p>
+
+<p>Referensi kilatnya ada di <a href="../reference/0001-dart-flutter-dasar.html">cheat sheet Dart dasar</a>.</p>
+
+<blockquote>Bingung soal beda <code>var</code> vs <code>final</code> vs <code>const</code>, atau kenapa error muncul pas praktik? Tanya ke aku — error yang kamu pecahin sendiri itu yang nempel paling lama di kepala.</blockquote>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

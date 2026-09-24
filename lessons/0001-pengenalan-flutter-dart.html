@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 001 — Pengenalan Flutter &amp; Dart</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 001 · Modul 1 · Pengenalan Flutter &amp; Dart</p>
+<h1>Flutter itu apa sih, dan kenapa pake Dart?</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/index.html">Modul 1: Pengenalan Flutter &amp; Dart</a>.</p>
+
+<p>Sebelum ngoding app <em>Anemia</em> kamu, kita perlu tahu dulu dua kata kunci: <strong>Flutter</strong> (framework UI) dan <strong>Dart</strong> (bahasanya). Satu kalimat rangkumannya: <em>Flutter adalah alatnya, Dart adalah bahasanya.</em></p>
+
+<h2>1. Flutter = UI toolkit cross-platform</h2>
+<p>Flutter buatan Google untuk bikin aplikasi dari <strong>satu codebase</strong> yang bisa jalan di Android, iOS, web, dan desktop. Kode kamu dikompilasi langsung ke kode mesin native — bukan lewat "jembatan" seperti React Native. Efeknya: performa hampir secepat native.</p>
+<p>Kenapa ini penting buat kamu? Karena app <strong>Anemia</strong> yang kamu bangun sekali bisa dipakai di HP Android (temannya iOS juga), versi web, dan desktop — tanpa nulis ulang.</p>
+
+<h2>2. Dart = bahasanya</h2>
+<p>Dart itu bahasa modern buatan Google: <em>object-oriented</em>, <em>null-safe</em>, dan mendukung <em>async/await</em>. Semua kode Flutter ditulis pakai Dart.</p>
+<p>Coba ini — contoh dari dosen, jalankan di project kamu:</p>
+<pre><code>void main() {
+  // Variabel dengan type inference
+  var nama = 'Arif Hidayah';
+  int umur = 28;
+  double ipk = 3.93;
+  bool isDosen = true;
+
+  print('Halo, saya $nama');
+  print('Umur: $umur, IPK: $ipk');
+}</code></pre>
+<p>Sudah ada di <code>bin/hello_dart.dart</code> — jalankan dengan:</p>
+<pre><code>&gt; dart run bin/hello_dart.dart</code></pre>
+
+<h2>3. Empat fitur Dart yang wajib kamu kenal sekarang</h2>
+<table>
+<tr><th>Fitur</th><th>Arti sederhananya</th></tr>
+<tr><td><strong>Null safety</strong></td><td>Variabel gak bisa <code>null</code> kecuali kamu paksa pakai <code>?</code>. Mencegah error "null" waktu runtime.</td></tr>
+<tr><td><strong>Type inference</strong></td><td>Dart bisa nebak tipe lewat <code>var</code> — tapi kamu tetap bisa tulis eksplisit: <code>int</code>, <code>double</code>, <code>bool</code>, <code>String</code>.</td></tr>
+<tr><td><strong>Async/await</strong></td><td>Untuk panggil API / database tanpa bikin app nge-freeze. Datang di modul 5.</td></tr>
+<tr><td><strong>OOP lengkap</strong></td><td>Class, inheritance, mixin, abstract — cara Dart rapihin kode besar. Datang di modul 4.</td></tr>
+</table>
+
+<h2>4. Di Flutter, semuanya Widget</h2>
+<p>Tombol itu widget. Padding itu widget. Layar itu widget. Semua tersusun jadi <strong>widget tree</strong> (pohon widget). Dua jenis dasarnya:</p>
+<table>
+<tr><th>Jenis</th><th>Kapan dipakai</th><th>Contoh</th></tr>
+<tr><td><strong>StatelessWidget</strong></td><td>UI statis, gak berubah</td><td>Text, Icon, tampilan "Halo Mahasiswa"</td></tr>
+<tr><td><strong>StatefulWidget</strong></td><td>UI yang berubah saat runtime</td><td>Form input, counter, animasi</td></tr>
+</table>
+<p>Contoh app paling polos dari dosen (sudah dipasang di <code>lib/main.dart</code>):</p>
+<pre><code>import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
+      home: const Scaffold(
+        body: Center(
+          child: Text('Halo Mahasiswa! 🎓', style: TextStyle(fontSize: 24)),
+        ),
+      ),
+    );
+  }
+}</code></pre>
+
+<h2>5. Arsitektur Flutter (3 lapis)</h2>
+<p><span class="tag">Framework (Dart)</span> tempat kamu nulis kode → <span class="tag">Engine (C/C++)</span> mesin render &amp; runtime Dart → <span class="tag">Embedder</span> bicara ke OS (Android/iOS/web). Kamu cukup sentuh lapisan paling atas.</p>
+
+<h2>Latihan cepat (5 menit)</h2>
+<ol>
+<li>Jalankan <code>dart run bin/hello_dart.dart</code> — lihat output-nya.</li>
+<li>Jalankan <code>flutter test</code> — test kita memastikan teks "Halo Mahasiswa! 🎓" muncul.</li>
+<li><em>(Bonus)</em> Ubah <code>fontSize: 24</code> jadi <code>fontSize: 32</code> di <code>lib/main.dart</code>, lalu <code>flutter test</code> lagi — masih hijau kalau kamu gak merusak test-nya.</li>
+</ol>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Flutter itu…</h3>
+<button class="opt" data-q="q1" data-correct="true">UI toolkit cross-platform buatan Google</button>
+<button class="opt" data-q="q1">bahasa pemrograman pengganti JavaScript</button>
+<button class="opt" data-q="q1">database lokal untuk aplikasi mobile</button>
+<p class="explain">Flutter adalah framework UI (toolkit). Bahasa yang dia pakai adalah Dart.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Bahasa pemrograman untuk menulis app Flutter adalah…</h3>
+<button class="opt" data-q="q2">Kotlin</button>
+<button class="opt" data-q="q2" data-correct="true">Dart</button>
+<button class="opt" data-q="q2">Swift</button>
+<p class="explain">Semua kode Flutter ditulis dalam Dart.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Widget yang cocok untuk input form (berubah saat runtime) adalah…</h3>
+<button class="opt" data-q="q3" data-correct="true">StatefulWidget</button>
+<button class="opt" data-q="q3">StatelessWidget</button>
+<button class="opt" data-q="q3">Scaffold</button>
+<p class="explain">Form input / konten interaktif butuh state yang berubah → StatefulWidget. Stateless untuk UI statis; Scaffold adalah layout dasar, bukan jenis widget state.</p>
+</div>
+
+<h2>Primary source yang wajib dibaca</h2>
+<p>Baca <a href="https://docs.flutter.dev/get-started/codelab">Flutter codelab resmi</a> (bagian "Your first Flutter app") — ini versi resmi Google dari yang tadi kita praktikin, dengan penjelasan tiap baris.</p>
+
+<blockquote>Terus nanya, ya! Aku (agent) guru kamu — kalau ada istilah atau baris kode yang bikin bingung di materi dosen, tanyakan langsung ke aku.</blockquote>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 007 — Layout &amp; Responsive</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 007 · Modul 7 · Layout &amp; Responsive Design</p>
+<h1>Dashboard anemia menyesuaikan layar</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/layout-responsive.html">Modul 7: Layout &amp; Responsive Design</a>.</p>
+
+<p>App kamu bakal jalan di HP 5", HP 6.7", tablet, dan desktop. Modul ini ngajarin layout yang <strong>fleksibel</strong> — dan di misi kita, Kartu Pasien dari Modul 6 naik kelas jadi <strong>Dashboard Anemia lengkap</strong>: ringkasan, menu grid, dan daftar pasien dalam satu halaman yang bisa di-scroll dan adaptif.</p>
+
+<h2>Aturan emas layout: Constraint Flow 📐</h2>
+<ol>
+<li>Constraint (batasan ukuran) mengalir <strong>turun</strong>: parent → child</li>
+<li>Size mengalir <strong>naik</strong>: child → parent</li>
+<li>Parent menentukan <strong>posisi</strong> child</li>
+</ol>
+<p>Melanggar aturan ini = error "Vertical viewport was given unbounded height" yang terkenal itu.</p>
+
+<h2>Widget layout inti</h2>
+<table>
+<tr><th>Widget</th><th>Kegunaan</th><th>Di dashboard kita</th></tr>
+<tr><td><code>Expanded</code>/<code>Flexible</code></td><td>Bagi sisa ruang proporsional (pakai <code>flex</code>)</td><td>3 kartu statistik 1:1:1</td></tr>
+<tr><td><code>Stack</code> + <code>Positioned</code></td><td>Tumpuk widget / posisi mutlak (CSS absolute)</td><td>dot status di pojok avatar pasien</td></tr>
+<tr><td><code>ListView</code>/<code>ListView.builder</code></td><td>Scroll, builder = lazy (render item yg keliatan)</td><td>daftar pasien</td></tr>
+<tr><td><code>GridView.count</code></td><td>Grid kolom tetap / fleksibel</td><td>menu cepat</td></tr>
+<tr><td><code>MediaQuery</code></td><td>Tau ukuran &amp; orientasi layar (width, height)</td><td>tombol ukuran layar di AppBar</td></tr>
+<tr><td><code>LayoutBuilder</code></td><td>Baca constraint <em>parent</em> → tata letak adaptif</td><td>menu 2 kolom (HP) / 4 kolom (lebar)</td></tr>
+<tr><td><code>SafeArea</code></td><td>Amankan konten dari notch/status bar</td><td>bungkus seluruh body</td></tr>
+<tr><td><code>SingleChildScrollView</code></td><td>Scroll untuk konten biasa (mis. form panjang)</td><td>bungkus isi dashboard</td></tr>
+</table>
+
+<h2>Expanded &amp; flex — gambarannya</h2>
+<pre><code>Row(children: [
+  Expanded(flex: 2, child: merah),  // 2/3 ruang
+  Expanded(flex: 1, child: hijau),  // 1/3 ruang
+])</code></pre>
+<p>Di dashboard: tiga <code>Expanded</code> tanpa flex (default 1) = tiga kartu sama lebar.</p>
+
+<h2>Stack + Positioned — badge di pojok</h2>
+<pre><code>Stack(clipBehavior: Clip.none, children: [
+  CircleAvatar(child: Icon(Icons.person)),
+  Positioned(right: -2, bottom: -2,
+    child: Container(width: 14, height: 14,
+      decoration: BoxDecoration(color: merah/ijo, shape: BoxShape.circle))),
+])</code></pre>
+
+<h2>ListView vs GridView — kapan pake yang mana</h2>
+<pre><code>ListView.builder(
+  itemCount: 100,
+  itemBuilder: (context, i) =&gt; ListTile(title: Text('Item $i')),
+)
+
+GridView.count(
+  crossAxisCount: 2,          // jumlah kolom
+  mainAxisExtent: 96,         // tinggi tiap sel (biar pendek)
+  children: [...],
+)</code></pre>
+<p>GridView/menu di dalam scroll view → wajib <code>shrinkWrap: true</code> + <code>physics: NeverScrollableScrollPhysics()</code> biar nggak dobel-scroll &amp; error unbounded.</p>
+
+<h2>Responsive: MediaQuery vs LayoutBuilder</h2>
+<table>
+<tr><th>Alat</th><th>Baca apa</th><th>Kapan</th></tr>
+<tr><td><code>MediaQuery.of(context).size</code></td><td>Ukuran <strong>layar device</strong></td><td>butuh dimensi absolut layar (mis. 80% lebar)</td></tr>
+<tr><td><code>LayoutBuilder</code></td><td>Constraint dari <strong>parent widget</strong></td><td>layout adaptif dalam satu kolom/panel</td></tr>
+</table>
+
+<h2>Mini project hari ini: Dashboard Anemia 🩺</h2>
+<p>Udah kubuat di <code>lib/main.dart</code>: ringkasan (Total/Anemia/Normal — logika <code>where</code> dari Modul 5!), menu grid adaptif (2→4 kolom), daftar pasien dengan badge status. Di-verifikasi: <code>flutter analyze</code> No issues, <code>flutter test</code> pass (cek jumlah ANEMIA = 3 dari data 6 pasien).</p>
+
+<h2>Tugas praktik (10 menit)</h2>
+<ol>
+<li>Jalankan <code>flutter run -d chrome</code>, lalu <strong>drag-ubah lebar jendela browser</strong> → menu grid berubah 2↔4 kolom. Itu cara tercepat tes responsif tanpa device.</li>
+<li>Tekan tombol <code>aspect_ratio</code> di AppBar → SnackBar muncul berisi ukuran layar (MediaQuery).</li>
+<li><strong>Ubah no. 1:</strong> ganti ambang kolom dari <code>600</code> jadi <code>400</code> di <code>LayoutBuilder</code> → lihat perubahannya.</li>
+<li><strong>Ubah no. 2 (tantangan dosen):</strong> tambah 1 item menu lagi di <code>_menu</code> (misal "Rumah Sakit") + 1 pasien di daftar.</li>
+</ol>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Widget untuk membagi ruang proporsional…</h3>
+<button class="opt" data-q="q1" data-correct="true">Expanded</button>
+<button class="opt" data-q="q1">Stack</button>
+<button class="opt" data-q="q1">SafeArea</button>
+<p class="explain"><code>Expanded</code> membagi sisa ruang bert<code>flex</code>. <code>Stack</code> menumpuk, <code>SafeArea</code> mengamankan dari notch.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Widget untuk menumpuk widget di atas widget…</h3>
+<button class="opt" data-q="q2" data-correct="true">Stack</button>
+<button class="opt" data-q="q2">Row</button>
+<button class="opt" data-q="q2">Grid</button>
+<p class="explain"><code>Stack</code> = tumpukan (mirip z-index). <code>Row</code> = sejajar horizontal. <code>Positioned</code> dipakai di dalam Stack.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Daftar banyak item, render seperlunya pakai…</h3>
+<button class="opt" data-q="q3" data-correct="true">ListView.builder</button>
+<button class="opt" data-q="q3">ListView biasa</button>
+<button class="opt" data-q="q3">GridView</button>
+<p class="explain"><code>ListView.builder</code> lazy — item yang nggak keliatan nggak di-render. <code>ListView</code> biasa render semua sekaligus.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Menjaga konten dari tertutup notch/kamera…</h3>
+<button class="opt" data-q="q4" data-correct="true">SafeArea</button>
+<button class="opt" data-q="q4">Padding</button>
+<button class="opt" data-q="q4">Scaffold</button>
+<p class="explain"><code>SafeArea</code> otomatis nambah padding di area yang terpotong (notch, status bar). <code>Padding</code> manual nilai tetap.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Responsif berdasarkan lebar parent, pakai…</h3>
+<button class="opt" data-q="q5" data-correct="true">LayoutBuilder</button>
+<button class="opt" data-q="q5">MediaQuery</button>
+<button class="opt" data-q="q5">Expanded</button>
+<p class="explain"><code>LayoutBuilder</code> baca constraint parent; <code>MediaQuery</code> baca ukuran layar device.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://docs.flutter.dev/ui/layout">Flutter docs: Layout</a> (constraint flow, Row/Column, Expanded/Flexible, Stack) dan <a href="https://docs.flutter.dev/ui/layout/responsive">Flutter docs: Building responsive UIs</a> (LayoutBuilder + MediaQuery).</p>
+
+<p>Sebelumnya: <a href="0006-widget-dasar.html">Lesson 006 — Widget Dasar</a>.</p>
+
+<blockquote>Kena "RenderFlex overflowed" atau "unbounded height"? Kabari aku — dua error layout paling umum itu persis yang membuat developer Flutter pemula kabur dari layout.</blockquote>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>

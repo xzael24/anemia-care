@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 010 — REST API &amp; HTTP</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<p class="kicker">Lesson 010 · Modul 10 · REST API &amp; HTTP</p>
+<h1>App anemia ngobrol sama server (demo)</h1>
+
+<p>Materi asli dosen: <a href="https://arifhidayah.vercel.app/flutter/rest-api.html">Modul 10: REST API &amp; HTTP</a>.</p>
+
+<p>Selama ini data nempel di dalam app. Modul ini ngajarin cara ambil data dari <strong>server lewat HTTP</strong> — dan buat missi kita, <strong>bonus dosen (direktori user dari JSONPlaceholder) kita angkat jadi tantangan utamanya</strong>: tab baru <strong>Direktori Pasien</strong> yang list-nya beneran dari API, bisa dibuka detail, dan bisa nambah pasien lewat POST.</p>
+
+<h2>REST API — 30 detik</h2>
+<p>Komunikasi client ↔ server pakai HTTP. Setiap operasi punya method sendiri:</p>
+<table>
+<tr><th>Method</th><th>Fungsi</th><th>Di app kita</th></tr>
+<tr><td><code>GET</code></td><td>Ambil data</td><td><code>getUsers()</code> → list direktori</td></tr>
+<tr><td><code>POST</code></td><td>Tambah data baru</td><td><code>tambahUser()</code> → form tambah</td></tr>
+<tr><td><code>PUT/PATCH</code></td><td>Ubah data lama</td><td>— (Modul 11+)</td></tr>
+<tr><td><code>DELETE</code></td><td>Hapus data</td><td>— (Modul 11+)</td></tr>
+</table>
+<p>API latihan: <a href="https://jsonplaceholder.typicode.com">JSONPlaceholder</a> — gratis, dipakai dosen dan gue.</p>
+
+<h2>GET — request paling dasar</h2>
+<pre><code>final response = await http.get(Uri.parse('https://jsonplaceholder.typicode.com/users'));
+
+if (response.statusCode == 200) {
+  final list = jsonDecode(response.body) as List;
+  ...
+} else {
+  throw Exception('Gagal (HTTP ${response.statusCode})');
+}</code></pre>
+
+<h2>Model + fromJson — jangan main Map mentah</h2>
+<pre><code>class UserPasien {
+  final int id; final String nama; final String email; final String kota; final String website;
+
+  factory UserPasien.fromJson(Map&lt;String, dynamic&gt; json) {
+    final address = json['address'] as Map&lt;String, dynamic&gt;?;
+    return UserPasien(
+      id: json['id'] as int, nama: json['name'] as String,
+      email: json['email'] as String,
+      kota: (address?['city'] as String?) ?? '',
+      website: (json['website'] as String?) ?? '',
+    );
+  }
+}</code></pre>
+
+<h2>Service class — pisahin HTTP dari widget</h2>
+<pre><code>class PasienService {
+  PasienService({http.Client? client}) : _client = client ?? http.Client();
+  final http.Client _client;
+
+  Future&lt;List&lt;UserPasien&gt;&gt; getUsers() async { ... }
+  Future&lt;UserPasien&gt; tambahUser(String nama, String email) async { ... }
+}</code></pre>
+<p>Kenapa client bisa di-inject? Biar gampang di-test — pakai <code>MockClient</code> dari <code>package:http/testing.dart</code> tanpa server beneran (itu yang bikin 3 unit test service kita jalan offline).</p>
+
+<h2>FutureBuilder — 3 keadaan otomatis</h2>
+<pre><code>FutureBuilder&lt;List&lt;UserPasien&gt;&gt;(
+  future: _future,
+  builder: (context, snap) {
+    if (snap.connectionState == ConnectionState.waiting) return loading;
+    if (snap.hasError) return errorUI;   // + tombol "Coba lagi"
+    return ListView.separated(...);      // sukses
+  },
+)</code></pre>
+
+<h2>JANGAN panggil API di build()</h2>
+<p><code>future: fetchData()</code> langsung di build = tiap rebuild request ulang. Simpan di state:</p>
+<pre><code>@override
+void initState() { super.initState(); _future = _service.getUsers(); }
+
+Future&lt;void&gt; _refresh() {
+  setState(() { _future = _service.getUsers(); });  // block body, bukan arrow!
+}</code></pre>
+<p><em>Bug yang gue temuin di kode sendiri pas nulis ini:</em> <code>setState(() =&gt; _future = ...)</code> — arrow return Future → Flutter nge-assert itu (gak boleh kerja async di dalam setState). Fix: block body. Bug nyata, ketauan karena test. 🤓</p>
+
+<h2>POST + SnackBar hijau/merah (tantangan no. 2-3)</h2>
+<pre><code>final user = await service.tambahUser(nama, email);   // server balas 201
+// hijau = sukses
+SnackBar(backgroundColor: Colors.green.shade600, content: Text('${user.nama} berhasil ditambahkan'));
+// merah = gagal (dalam catch)
+SnackBar(backgroundColor: Colors.red.shade400, content: Text('Gagal: $e'));</code></pre>
+
+<h2>RefreshIndicator — pull-to-refresh (Instagram style)</h2>
+<pre><code>RefreshIndicator(
+  onRefresh: _refresh,
+  child: FutureBuilder(...),  // isinya harus scrollable (ListView)
+)</code></pre>
+
+<h2>Yang berubah di project</h2>
+<table>
+<tr><th>File</th><th>Isi</th></tr>
+<tr><td><code>lib/models/user_pasien.dart</code></td><td>Model + <code>fromJson</code> (id, nama, email, kota, website)</td></tr>
+<tr><td><code>lib/services/pasien_service.dart</code></td><td>Service class — GET <code>/users</code> + POST <code>/users</code>, client injectable</td></tr>
+<tr><td><code>lib/screens/direktori_screen.dart</code></td><td>Tab baru: FutureBuilder list + RefreshIndicator + error state + tombol muat ulang</td></tr>
+<tr><td><code>lib/screens/detail_direktori_screen.dart</code></td><td>Detail pasien API (tantangan 1) + form tambah (tantangan 2-3) 2 TextField → POST → SnackBar warna</td></tr>
+<tr><td><code>lib/main.dart</code></td><td>Tab ke-4 <strong>Direktori</strong> di NavigationBar</td></tr>
+<tr><td><code>AndroidManifest.xml</code></td><td>+ <code>INTERNET</code> permission (penting buat release)</td></tr>
+<tr><td><code>test/pasien_service_test.dart</code></td><td>3 unit test service pakai <code>MockClient</code> (offline!)</td></tr>
+<tr><td><code>test/direktori_widget_test.dart</code></td><td>2 widget test: alur list→detail→tambah &amp; error state</td></tr>
+</table>
+
+<p>Package baru: <code>flutter pub add http</code> (http 1.6.0). Total test sekarang <strong>10</strong> (semua pass).</p>
+
+<h2>Tugas praktik (10 menit)</h2>
+<ol>
+<li><code>flutter run</code> → tab <strong>Direktori</strong> → list pasien dari server beneran muncul (butuh internet!). Tarik ke bawah → pull-to-refresh jalan.</li>
+<li>Klik salah satu pasien → detail (nama, email, kota, website).</li>
+<li>Ikon ➕ di AppBar → isi Nama &amp; Email → Simpan → SnackBar <strong>hijau</strong>. Matiin internet → coba lagi → SnackBar <strong>merah</strong>. (Catatan: JSONPlaceholder nggak nyimpen beneran — pas refresh data bales ke 10 user asli. Itu wajar, API demo.)</li>
+<li><strong>Tantangan dosen:</strong> tambah tombol "Muat Ulang" ↻ yang udah ada di AppBar Direktori — coba hubungin ke error state (pasti bareng "Coba lagi").</li>
+<li><strong>Tantangan dosen (opsional):</strong> bikin halaman pembaca <code>/posts</code> kayak contoh dosen di project terpisah.</li>
+</ol>
+
+<h2>Kuis singkat</h2>
+<div class="quiz" id="q1">
+<h3>Q1: Ambil data dari server = method…</h3>
+<button class="opt" data-q="q1" data-correct="true">GET</button>
+<button class="opt" data-q="q1">POST</button>
+<button class="opt" data-q="q1">DELETE</button>
+<p class="explain">GET = ambil, POST = tambah, PUT/PATCH = ubah, DELETE = hapus.</p>
+</div>
+
+<div class="quiz" id="q2">
+<h3>Q2: Cek suksesnya request = lihat…</h3>
+<button class="opt" data-q="q2" data-correct="true">statusCode</button>
+<button class="opt" data-q="q2">body</button>
+<button class="opt" data-q="q2">headers</button>
+<p class="explain"><code>200</code> sukses GET, <code>201</code> sukses POST, <code>404</code> nggak ketemu, <code>500</code> server error.</p>
+</div>
+
+<div class="quiz" id="q3">
+<h3>Q3: Ubah JSON jadi object Dart pakai…</h3>
+<button class="opt" data-q="q3" data-correct="true">factory fromJson</button>
+<button class="opt" data-q="q3">setState</button>
+<button class="opt" data-q="q3">MaterialPageRoute</button>
+<p class="explain"><code>UserPasien.fromJson(json)</code> — pola type-safe, bukan kerja dengan Map mentah.</p>
+</div>
+
+<div class="quiz" id="q4">
+<h3>Q4: Loading / error / sukses sekaligus = pakai…</h3>
+<button class="opt" data-q="q4" data-correct="true">FutureBuilder</button>
+<button class="opt" data-q="q4">ListView</button>
+<button class="opt" data-q="q4">Drawer</button>
+<p class="explain"><code>FutureBuilder</code> kasih state otomatis: waiting → loading, hasError → error, data! → sukses.</p>
+</div>
+
+<div class="quiz" id="q5">
+<h3>Q5: Panggil API tiap rebuild = salah. Pola yang bener…</h3>
+<button class="opt" data-q="q5" data-correct="true">simpan Future di initState</button>
+<button class="opt" data-q="q5">panggil di build()</button>
+<button class="opt" data-q="q5">panggil di const constructor</button>
+<p class="explain">Future dibuat sekali di <code>initState</code>, di-refresh lewat setState block body.</p>
+</div>
+
+<h2>Primary source</h2>
+<p>Baca <a href="https://docs.flutter.dev/data-and-backend/networking">Flutter docs: Networking</a> (http requests + JSON) dan <a href="https://pub.dev/packages/http">pub.dev: http</a> (API lengkap package). Coba-coba endpoint <a href="https://jsonplaceholder.typicode.com">JSONPlaceholder</a> langsung di browser.</p>
+
+<p>Sebelumnya: <a href="0009-state-management.html">Lesson 009 — State Management</a>.</p>
+
+<blockquote>Catatan jujur: Direktori diisi data JSONPlaceholder (bukan pasien beneran) karena ini API latihan. Di Modul 11 (SQLite) data baru mulai real &amp; lokal — dan di final project lo bisa sambungin ke API/server anemia yang beneran.</blockquote>
+
+<script>
+document.querySelectorAll('.quiz .opt').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var quiz = document.getElementById(btn.dataset.q);
+    var opts = quiz.querySelectorAll('.opt');
+    opts.forEach(function (o) { o.classList.remove('correct', 'wrong'); o.disabled = true; });
+    btn.classList.add(btn.dataset.correct ? 'correct' : 'wrong');
+    quiz.querySelector('.explain').classList.add('show');
+  });
+});
+</script>
+</body>
+</html>
