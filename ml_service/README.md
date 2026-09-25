@@ -133,6 +133,20 @@ Hb < 120 g/L (cut-off WHO tanpa info jenis kelamin; 69/250 anemi).
 Sens/spec pada THRESHOLD serving (0.39): **GT mean 0.754 / 0.840**,
 **PCD mean 0.420 / 0.928**.
 
+**Operating point untuk foto tangan penuh** (`pcd_threshold_sweep.py`,
+threshold dipilih supaya sens ≥ 0.85 sesuai target KONSEP):
+
+| Varian | t (sens≥0.85) | sens | spec | pembanding: Youden t / sens·spec |
+|---|---|---|---|---|
+| GT crop mean (oracle) | **0.325** | 0.855 | **0.746** | 0.400 / 0.739·0.862 |
+| GT crop median | 0.325 | 0.841 | 0.702 | 0.350 / 0.841·0.751 |
+| **PCD mean (otomatis)** | **0.250** | 0.855 | 0.503 | 0.350 / 0.565·0.867 |
+| PCD median (otomatis) | 0.275 | 0.855 | 0.564 | 0.300 / 0.797·0.630 |
+| PCD max | 0.400 | 0.855 | 0.354 | 0.550 / 0.652·0.768 |
+
+Profil `pcd_mean`: t=0.25 → sens 0.855 spec 0.503 ppv 0.396; t=0.30 → 0.725/0.685;
+t=0.39 → 0.420/0.928 (terlalu konservatif untuk foto tangan penuh).
+
 **Bacaan penting (jujur):**
 1. Uji crop lama ("0.47 vs 0.62 terbalik") **tidak valid** — koordinat transform
    keluar frame. Retest dengan koordinat benar: korelasi negatif kuat & konsisten
@@ -147,6 +161,13 @@ Sens/spec pada THRESHOLD serving (0.39): **GT mean 0.754 / 0.840**,
    melemahkan rata-rata pasien; sens pada threshold 0.39 rendah (0.42) karena
    threshold serving itu diset untuk foto close-up. Iterasi lanjut: kalibrasi
    warna (CLAHE/Retinex) + filter FP (score/occupancy lebih ketat).
+5. **Operating point:** kalau app mau menerima foto tangan penuh, threshold
+   0.39 harus diturunkan — `pcd_mean` @ t=0.25 mencapai sens 0.855 spec 0.503
+   (ppv 0.396 vs prevalensi 27.6%). Selama app masih mewajibkan close-up,
+   threshold 0.39 tetap yang tepat untuk domain training (sens 0.877 di test
+   kaggle). Angka operating point ini punya posisi yang sama jujurnya: dihitung
+   pada set tes figshare penuh (bukan hold-out) — ceiling empiris, bukan
+   generalisasi.
 
 Catatan teknis: `rf_model.joblib` dilatih di sklearn 1.9.1 dan dievaluasi di
 1.7.2 — RandomForest inference deterministik terhadap struktur pohon, jadi
