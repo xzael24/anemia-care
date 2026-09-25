@@ -17,7 +17,11 @@ import 'fakes/in_memory_session_store.dart';
 
 class _FakeSkriningService extends SkriningService {
   @override
-  Future<HasilSkrining> skriningFoto(File foto, {String? token}) async =>
+  Future<HasilSkrining> skriningFoto(
+    File foto, {
+    String? token,
+    String mode = 'kuku',
+  }) async =>
       _hasilAnemia();
 }
 
@@ -100,6 +104,7 @@ void main() {
         service: _FakeSkriningService(),
         store: InMemoryRiwayatStore(),
         pickFoto: pickFoto,
+        openKamera: (_) async => File(tempFoto.path),
         rekomendasiService: rekomendasi,
         sessionStore: session ?? InMemorySessionStore(),
       ),

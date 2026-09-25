@@ -11,6 +11,7 @@ import '../services/riwayat_skrining_store.dart';
 import '../services/session_store.dart';
 import '../services/skrining_service.dart';
 import 'akun_screen.dart';
+import 'kamera_capture_screen.dart';
 
 /// Layar skrining anemia dari foto kuku (fitur inti capstone):
 /// pilih foto (kamera/galeri) → POST `/api/screening` → indikasi awal +
@@ -18,7 +19,12 @@ import 'akun_screen.dart';
 /// tindak lanjut fuzzy (PSC1). Bila pengguna sudah login akun, skrining ikut
 /// tersimpan per akun di backend dan konteks profil mengisi form rekomendasi.
 ///
-/// Semua dependensi (service, store, picker, session) bisa di-inject dari test.
+/// Mode foto: `kuku` (close-up, kamera dengan bingkai panduan kuku) atau
+/// `tangan` (foto tangan penuh — sidecar ML mendeteksi kuku otomatis via PCD,
+/// endpoint /predict-hand). Mode dikirim sebagai field multipart `mode`.
+///
+/// Semua dependensi (service, store, picker, session, kamera) bisa di-inject
+/// dari test.
 class SkriningPage extends StatefulWidget {
   const SkriningPage({
     super.key,
@@ -27,6 +33,7 @@ class SkriningPage extends StatefulWidget {
     this.pickFoto,
     this.rekomendasiService,
     this.sessionStore,
+    this.openKamera,
   });
 
   final SkriningService? service;
@@ -34,9 +41,13 @@ class SkriningPage extends StatefulWidget {
   final RekomendasiService? rekomendasiService;
   final SessionStore? sessionStore;
 
-  /// Fungsi pemilih foto — default [ImagePicker] (plugin native, tidak bisa
-  /// dipakai di widget test).
+  /// Fungsi pemilih foto dari galeri — default [ImagePicker] (plugin native,
+  /// tidak bisa dipakai di widget test).
   final Future<XFile?> Function(ImageSource source)? pickFoto;
+
+  /// Buka layar kamera (overlay bingkai kuku) — default [KameraCaptureScreen].
+  /// Dikembalikan [File] foto hasil jepret; `null` = batal.
+  final Future<File?> Function(String mode)? openKamera;
 
   @override
   State<SkriningPage> createState() => _SkriningPageState();
@@ -65,11 +76,32 @@ class _SkriningPageState extends State<SkriningPage> {
   bool _memuat = false;
   List<HasilSkrining> _riwayat = [];
 
+  /// Mode foto: 'kuku' (close-up) atau 'tangan' (tangan penuh, PCD otomatis).
+  String _mode = 'kuku';
+
   @override
   void initState() {
     super.initState();
     _muatRiwayat();
     _muatSesi();
+  }
+
+  /// Buka kamera (dengan bingkai panduan sesuai mode) — injectable untuk test.
+  Future<void> _bukaKamera() async {
+    final file = widget.openKamera != null
+        ? await widget.openKamera!(_mode)
+        : await Navigator.push<File>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => KameraCaptureScreen(mode: _mode),
+            ),
+          );
+    if (file == null || !mounted) return;
+    setState(() {
+      _foto = XFile(file.path);
+      _hasil = null;
+      _error = null;
+    });
   }
 
   /// Token & profil akun (opsional) — skrining & konteks rekomendasi.
@@ -113,6 +145,7 @@ class _SkriningPageState extends State<SkriningPage> {
       final hasil = await _service.skriningFoto(
         File(foto.path),
         token: sesi?.token,
+        mode: _mode,
       );
       await _store.tambah(hasil);
       await _muatRiwayat();
@@ -152,7 +185,31 @@ class _SkriningPageState extends State<SkriningPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _PetunjukCard(),
+            _PetunjukCard(mode: _mode),
+            const SizedBox(height: 12),
+            // Mode foto: close-up 1 kuku vs tangan penuh (deteksi otomatis).
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment<String>(
+                  value: 'kuku',
+                  label: Text('Close-up'),
+                  icon: Icon(Icons.pan_tool_outlined),
+                ),
+                ButtonSegment<String>(
+                  value: 'tangan',
+                  label: Text('Tangan penuh'),
+                  icon: Icon(Icons.back_hand_outlined),
+                ),
+              ],
+              selected: {_mode},
+              onSelectionChanged: (s) => setState(() {
+                _mode = s.first;
+                _foto = null;
+                _hasil = null;
+                _error = null;
+              }),
+              showSelectedIcon: false,
+            ),
             const SizedBox(height: 16),
             _pratinjauFoto(),
             const SizedBox(height: 12),
@@ -160,7 +217,7 @@ class _SkriningPageState extends State<SkriningPage> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _pilihFoto(ImageSource.camera),
+                    onPressed: _bukaKamera,
                     icon: const Icon(Icons.photo_camera),
                     label: const Text('Kamera'),
                   ),
@@ -303,27 +360,39 @@ class _SkriningPageState extends State<SkriningPage> {
 }
 
 class _PetunjukCard extends StatelessWidget {
-  const _PetunjukCard();
+  const _PetunjukCard({required this.mode});
+
+  final String mode;
 
   @override
   Widget build(BuildContext context) {
+    final baris = mode == 'tangan'
+        ? const <String>[
+            '• Foto seluruh tangan, jari terpisah & menghadap ke atas',
+            '• Pencahayaan cukup & latar bersih',
+            '• Kuku terdeteksi & dianalisis otomatis (PCD)',
+            '• Tanpa kutek / inai / riasan kuku',
+          ]
+        : const <String>[
+            '• Kuku mengisi frame — ikuti bingkai panduan kamera',
+            '• Pencahayaan cukup & fokus pada kuku',
+            '• Foto 1 jari (biasanya telunjuk), latar netral',
+            '• Tanpa kutek / inai / riasan kuku',
+            '• Hindari bayangan & kilau berlebihan',
+          ];
     return Card(
       color: Theme.of(context).colorScheme.primaryContainer.withAlpha(90),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text(
-              'Petunjuk Foto Kuku',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              mode == 'tangan' ? 'Petunjuk Foto Tangan Penuh' : 'Petunjuk Foto Kuku',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 6),
-            Text('• Kuku mengisi frame (close-up) — jangan foto tangan penuh'),
-            Text('• Pencahayaan cukup & fokus pada kuku'),
-            Text('• Foto 1 jari (biasanya telunjuk), latar netral'),
-            Text('• Tanpa kutek / inai / riasan kuku'),
-            Text('• Hindari bayangan & kilau berlebihan'),
+            const SizedBox(height: 6),
+            ...baris.map((t) => Text(t)),
           ],
         ),
       ),

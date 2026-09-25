@@ -12,6 +12,11 @@ feature-based** (fitur warna 33D dari foto kuku → probabilitas indikasi anemia
 foto kuku (app) → POST /predict (multipart "file")
    → resize 224×224 → fitur 33D (persentil RGB + rasio + LAB + HSV + gray)
    → RandomForest → {"label": "anemia"|"normal", "probability": 0–1, ...}
+
+foto tangan penuh (app, mode "hand") → POST /predict-hand (multipart "file")
+   → PCD: mask kulit HSV → grid fingertip → bbox kuku → top-2/peak
+   → crop per kuku → fitur 33D → RF per kuku
+   → prob pasien = mean (+ median) → label dengan THRESHOLD_HAND
 ```
 
 Fitur 33D adalah replika persis baseline (`capstone/scripts/training/build_notebook.py`
@@ -45,6 +50,13 @@ Kontrak:
   ```json
   {"label":"anemia","probability":0.87,"hb_estimate_gdl":null,"model":"rf_v1"}
   ```
+- `POST /predict-hand` (multipart field `file`, foto tangan penuh) →
+  ```json
+  {"label":"anemia","probability":0.38,"probability_median":0.39,"n_nails":8,"model":"rf_v1_pcd"}
+  ```
+  - Melempar `400` bila kuku tidak terdeteksi (pesan ramah), `503` bila
+    model/PCD belum siap.
+  - Dependensi tambahan: `scipy` (di `requirements.txt`), modul `pcd_core.py`.
 
 ## Integrasi backend
 
@@ -172,6 +184,30 @@ t=0.39 → 0.420/0.928 (terlalu konservatif untuk foto tangan penuh).
    pada set tes figshare penuh (bukan hold-out) — ceiling empiris, bukan
    generalisasi.
 
+## Serving foto tangan penuh: endpoint /predict-hand (2026-09-25)
+
+Resep inferensi = resep rantai terukur (seksi di atas): PCD deteksi kuku →
+**top-2 box per fingertip peak** (`KEEP_K=2`) → crop 224 LANCZOS → fitur 33D →
+RF per kuku → **prob pasien = mean** (+ median dikembalikan juga).
+`THRESHOLD_HAND=0.25` dipakai untuk label (operating point sens≥0.85;
+`/predict` close-up tetap memakai `THRESHOLD=0.39`).
+
+Orientasi: PCD diasumsikan jari menghadap ke atas; endpoint mencoba orientasi
+asli + rotasi 90/180/270 dan memakai versi dengan kandidat terbanyak, agar
+foto HP (tidak selalu portrait persis) tetap terproses.
+
+Uji manual dua foto ekstrem figshare (verifikasi arah, bukan metrik):
+
+| Foto (Hb) | /predict-hand | Catatan |
+|---|---|---|
+| `288.jpg` (4.4 g/dL, anemi) | anemia · prob 0.383 · 8 kuku | arah benar |
+| `54.jpg` (16.9 g/dL, normal) | normal · prob 0.166 · 10 kuku | arah benar |
+
+Batas yang sama berlaku: akurasi di lapangan belum terukur (figshare
+out-of-domain, ceiling empiris AUC 0.794 — lihat seksi rantai). Layar app
+memberi panduan bingkai kuku (mode close-up) dan instruksi tangan (mode penuh)
+untuk menekan input di luar domain.
+
 Catatan teknis: `rf_model.joblib` dilatih di sklearn 1.9.1 dan dievaluasi di
 1.7.2 — RandomForest inference deterministik terhadap struktur pohon, jadi
 angka di atas tidak terpengaruh (warning version hanya peringatan loader).
@@ -179,8 +215,10 @@ angka di atas tidak terpengaruh (warning version hanya peringatan loader).
 ## Roadmap (belum dikerjakan)
 
 - [x] Segmentasi kuku (PCD): bbox otomatis — dievaluasi (seksi PCD) + terbukti
-      berguna end-to-end (seksi rantai PCD→ML); integrasi ke serving belum
+      berguna end-to-end (seksi rantai PCD→ML)
 - [x] Uji rantai PCD→crop→RF pada foto tangan penuh figshare (AUC 0.794)
+- [x] Integrasi PCD ke serving: `/predict-hand` (top-2/peak, THRESHOLD_HAND,
+      fallback rotasi) — lihat seksi "Serving foto tangan penuh"
 - [ ] Normalisasi pencahayaan (CLAHE/Retinex) + kalibrasi white balance
 - [ ] Estimasi Hb (regresi, subset nature) sebagai pendukung
 - [ ] Rilis CNN / ensemble RF+CNN sebagai alternatif model

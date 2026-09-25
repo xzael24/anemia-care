@@ -31,6 +31,7 @@ export class ScreeningController {
   @UseInterceptors(FileInterceptor('photo'))
   async screen(
     @UploadedFile() file?: Express.Multer.File,
+    @Body() body?: { mode?: string },
     @Req() req?: Request,
   ) {
     if (!file) {
@@ -39,10 +40,13 @@ export class ScreeningController {
     if (!file.mimetype?.startsWith('image/')) {
       throw new BadRequestException('File harus berupa gambar');
     }
+    // mode=hand → foto tangan penuh: sidecar ML menjalankan PCD (segmen kuku
+    // otomatis) sebelum ekstraksi fitur. Default closeup = kontrak lama.
+    const mode: 'closeup' | 'hand' = body?.mode === 'hand' ? 'hand' : 'closeup';
     // Opsional: bila token pasien valid → skrining tercatat ke akun.
     // Token invalid/absen/petugas → tetap boleh anonim (publik).
     const pasienId = this.pasienIdDariToken(req);
-    const record = await this.screenings.screen(file, pasienId);
+    const record = await this.screenings.screen(file, pasienId, mode);
     return { ...record, disclaimer: DISCLAIMER };
   }
 

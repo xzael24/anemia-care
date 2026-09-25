@@ -18,8 +18,16 @@ class _FakeSkriningService extends SkriningService {
   final HasilSkrining? _hasil;
   final Exception? _error;
 
+  /// Mode terakhir yang diteruskan layar ke service (default 'kuku').
+  String? lastMode;
+
   @override
-  Future<HasilSkrining> skriningFoto(File foto, {String? token}) async {
+  Future<HasilSkrining> skriningFoto(
+    File foto, {
+    String? token,
+    String mode = 'kuku',
+  }) async {
+    lastMode = mode;
     final err = _error;
     if (err != null) throw err;
     final hasil = _hasil;
@@ -62,6 +70,14 @@ void main() {
   Future<XFile?> pickFoto(ImageSource source) async =>
       XFile(tempFoto.path);
 
+  /// Viewport tinggi agar tombol Analisis (di bawah SegmentedButton mode)
+  /// tetap hittable seperti viewport ponsel nyata.
+  void besarLayar(WidgetTester tester) {
+    tester.view.physicalSize = const Size(1200, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+  }
+
   Widget bungkus({
     SkriningService? service,
     InMemoryRiwayatStore? store,
@@ -71,6 +87,9 @@ void main() {
         service: service,
         store: store ?? InMemoryRiwayatStore(),
         pickFoto: pickFoto,
+        // Kamera live (plugin native) tidak berjalan di widget test — ganti
+        // dengan kembalian langsung file temp.
+        openKamera: (_) async => File(tempFoto.path),
         sessionStore: InMemorySessionStore(),
       ),
     );
@@ -91,6 +110,7 @@ void main() {
   testWidgets('alur sukses: pilih foto → analisis → hasil + disclaimer + riwayat', (
     tester,
   ) async {
+    besarLayar(tester);
     final store = InMemoryRiwayatStore();
     await tester.pumpWidget(
       bungkus(service: _FakeSkriningService(_hasilAnemia()), store: store),
@@ -114,6 +134,7 @@ void main() {
   });
 
   testWidgets('gagal: error dari service ditampilkan di layar', (tester) async {
+    besarLayar(tester);
     await tester.pumpWidget(
       bungkus(
         service: _FakeSkriningService(
@@ -132,5 +153,26 @@ void main() {
       find.text('Tidak dapat terhubung ke server skrining'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('mode tangan penuh: petunjuk berganti + service terima mode '
+      '"tangan"', (tester) async {
+    besarLayar(tester);
+    final service = _FakeSkriningService(_hasilAnemia());
+    await tester.pumpWidget(bungkus(service: service));
+
+    // Default: mode close-up.
+    expect(find.text('Petunjuk Foto Kuku'), findsOneWidget);
+
+    await tester.tap(find.text('Tangan penuh'));
+    await tester.pumpAndSettle();
+    expect(find.text('Petunjuk Foto Tangan Penuh'), findsOneWidget);
+
+    await tester.tap(find.text('Kamera'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Analisis Kuku'));
+    await tester.pumpAndSettle();
+
+    expect(service.lastMode, 'tangan');
   });
 }

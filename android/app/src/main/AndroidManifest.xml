@@ -6,6 +6,12 @@
          intent sistem (Activity) jadi butuh CAMERA/manifest storage
          permission tidak; cukup READ_MEDIA_IMAGES untuk gallery. -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Kamera live dengan bingkai panduan kuku (plugin kamera) — runtime
+         permission ditangani plugin; deklarasi wajib di manifest. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
     <application
         android:label="Anemia Care"
         android:name="${applicationName}"

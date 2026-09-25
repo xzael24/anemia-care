@@ -37,8 +37,9 @@ export class ScreeningService {
   async screen(
     file: Express.Multer.File,
     pasienId: string | null = null,
+    mode: 'closeup' | 'hand' = 'closeup',
   ): Promise<ScreeningRecord> {
-    const result: MlResult = await this.ml.predict(file);
+    const result: MlResult = await this.ml.predict(file, mode);
     const record: ScreeningRecord = {
       id: randomUUID(),
       indication: result.prediction.label,

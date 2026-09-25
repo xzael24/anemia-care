@@ -34,7 +34,7 @@ Aplikasi ini menggabungkan dua project:
 
 | Fitur | Keterangan | Matkul Capstone |
 |---|---|---|
-| 📷 **Skrining Foto Kuku** | Capture (kamera/galeri) → **petunjuk kualitas foto** → `POST /api/screening` (multipart) → analisis ML | PCD + ML |
+| 📷 **Skrining Foto Kuku** | **Kamera live dengan bingkai panduan kuku** (sejajarkan kuku sebelum jepret) / galeri → petunjuk kualitas foto → mode **Close-up** (1 kuku) atau **Tangan penuh** (deteksi kuku otomatis PCD) → `POST /api/screening` (multipart, field `mode`) → analisis ML | PCD + ML |
 | 🎯 **Hasil Indikasi** | Badge 🟢/🟡/🔴 + confidence score + **disclaimer permanen** ("bukan diagnosis medis") | ML + Framework |
 | 🧠 **Rekomendasi Personal (Fuzzy)** | Konteks pengguna (gejala, menstruasi, kehamilan, tipe kulit) digabung hasil visual → rekomendasi tindak lanjut | PSC1 |
 | 🗂️ **Riwayat & Verifikasi** | Riwayat skrining per akun + status verifikasi petugas (web) + tren indikasi | Framework + DW |
@@ -131,11 +131,23 @@ curl -F "photo=@foto_kuku.jpg" http://192.168.56.101:3000/api/screening
 
 > Catatan: tanpa `DB_HOST` (mis. unit test), riwayat & akun disimpan di memori (default aman). **Ganti `JWT_SECRET`/`ADMIN_PASSWORD` di environment produksi!** (Di VM sudah diganti: `JWT_SECRET` random, `admin_kader`/`KaderAnemia#2026!`.)
 
+**Capture kamera + mode foto tangan penuh (2026-09-25):** tombol Kamera di layar
+Skrining membuka **`KameraCaptureScreen`** — preview kamera live dengan **bingkai
+panduan kuku** di tengah (mode close-up) atau bingkai besar + instruksi jari ke
+atas (mode tangan penuh), tombol jepret/ganti kamera/galeri, dan fallback otomatis
+bila izin kamera ditolak/tidak tersedia (tawarkan buka galeri). Pengguna memilih
+mode **Close-up / Tangan penuh** (SegmentedButton) → petunjuk di layar berubah →
+field `mode` dikirim multipart (`closeup` default | `hand`) → backend meneruskan
+ke sidecar ML: `hand` memanggil **`/predict-hand`** (PCD segmentasi kuku otomatis +
+top-2/peak + `THRESHOLD_HAND=0.25`, AUC 0.794 figshare — angka jujur di
+`ml_service/README.md`), `closeup` tetap `/predict` (kontrak lama, `THRESHOLD=0.39`).
+Persyaratan deploy baru: `scipy` di `ml_service/requirements.txt` (dipakai PCD).
+
 ## 🔌 API Endpoints
 
 | Method | Endpoint | Akses | Fungsi |
 |---|---|---|---|
-| `POST` | `/api/screening` | Publik | Skrining: upload foto kuku (`photo`) → indikasi awal |
+| `POST` | `/api/screening` | Publik | Skrining: upload foto kuku/tangan (`photo`, field opsional `mode` = `closeup`\|`hand`) → indikasi awal |
 | `GET` | `/api/screening` | `admin`/`petugas` | Riwayat skrining (terbaru dulu, max 100) |
 | `PATCH` | `/api/screening/:id/verify` | `admin`/`petugas` | Verifikasi hasil oleh petugas (human-in-the-loop) |
 | `GET` | `/api/dashboard/summary` | `admin`/`petugas` | Ringkasan agregat Data Warehouse (total, anemia, rate) |
@@ -154,7 +166,7 @@ Credential default dev: `admin` / `admin123` (seed otomatis saat tabel `petugas`
 
 ## 🏗️ Teknologi
 
-Flutter · Dart · Provider · sqflite (SQLite) · shared_preferences · http (multipart `POST /api/screening` via `SkriningService`; PasienService masih JSONPlaceholder latihan Modul 10) + http_parser · image_picker · path_provider · flutter_launcher_icons · flutter_native_splash · **Web admin: React + Vite + TypeScript (proyek `web_admin/`)**
+Flutter · Dart · Provider · sqflite (SQLite) · shared_preferences · http (multipart `POST /api/screening` via `SkriningService`; PasienService masih JSONPlaceholder latihan Modul 10) + http_parser · image_picker · **camera (layar capture + overlay bingkai kuku, `KameraCaptureScreen`)** · path_provider · flutter_launcher_icons · flutter_native_splash · **Web admin: React + Vite + TypeScript (proyek `web_admin/`)**
 
 ## 📂 Struktur
 

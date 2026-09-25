@@ -32,12 +32,20 @@ class SkriningService {
   ///
   /// [token] opsional: token pasien (dari sesi akun) membuat skrining
   /// tersimpan per akun di backend.
-  Future<HasilSkrining> skriningFoto(File foto, {String? token}) async {
+  ///
+  /// [mode] 'kuku' (default, close-up → /predict) atau 'tangan' (foto tangan
+  /// penuh → /predict-hand, PCD otomatis di sidecar ML).
+  Future<HasilSkrining> skriningFoto(
+    File foto, {
+    String? token,
+    String mode = 'kuku',
+  }) async {
     final uri = Uri.parse('$baseUrl/screening');
     final request = http.MultipartRequest('POST', uri)
       ..headers.addAll(
         token == null ? const {} : {'Authorization': 'Bearer $token'},
       )
+      ..fields['mode'] = mode == 'tangan' ? 'hand' : 'closeup'
       ..files.add(
         await http.MultipartFile.fromPath(
           'photo',

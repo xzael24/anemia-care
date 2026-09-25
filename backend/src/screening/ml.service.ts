@@ -16,8 +16,10 @@ export interface MlResult {
 /**
  * Adapter ke sidecar ML (FastAPI). Kontrak:
  * POST {ML_SERVICE_URL}/predict  (multipart field "file")
+ * POST {ML_SERVICE_URL}/predict-hand  (foto tangan penuh → PCD otomatis)
  * -> 200 { "label": "anemia"|"normal", "probability": 0-1,
  *          "hb_estimate_gdl": number|null, "model": "string" }
+ * Untuk predict-hand label memakai THRESHOLD_HAND (0.25) di sidecar.
  *
  * Selama sidecar belum aktif (ML_SERVICE_URL kosong / gagal),
  * fallback ke prediksi deterministik yang JELAS berlabel "mock".
@@ -31,7 +33,10 @@ export class MlService {
     return Boolean(url && url.trim().length > 0);
   }
 
-  async predict(file: Express.Multer.File): Promise<MlResult> {
+  async predict(
+    file: Express.Multer.File,
+    mode: 'closeup' | 'hand' = 'closeup',
+  ): Promise<MlResult> {
     if (!this.isConfigured || !file.buffer?.length) {
       return { prediction: this.mockPredict(file), source: 'mock' };
     }
@@ -46,7 +51,10 @@ export class MlService {
         }),
         file.originalname || 'photo.jpg',
       );
-      const res = await fetch(`${baseUrl}/predict`, {
+      // mode=hand -> foto tangan penuh -> sidecar jalankan PCD (segmentasi
+      // kuku otomatis) sebelum ekstraksi fitur; endpoint & threshold beda.
+      const endpoint = mode === 'hand' ? '/predict-hand' : '/predict';
+      const res = await fetch(`${baseUrl}${endpoint}`, {
         method: 'POST',
         body: form,
         signal: AbortSignal.timeout(15_000),

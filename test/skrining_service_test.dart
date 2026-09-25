@@ -42,6 +42,9 @@ void main() {
       expect(body, contains('name="photo"'));
       expect(body, contains('filename="kuku_test.jpg"'));
       expect(body, contains('content-type: image/jpeg'));
+      // Default mode close-up ikut dikirim.
+      expect(body, contains('name="mode"'));
+      expect(body, contains('name="mode"\r\n\r\ncloseup'));
       return http.Response(
         jsonEncode(hasilJson),
         201,
@@ -141,6 +144,22 @@ void main() {
       );
     });
     await serviceDengan(client).skriningFoto(fotoJpg);
+  });
+
+  test('mode tangan penuh → field multipart mode=hand', () async {
+    final client = MockClient((request) async {
+      final body = utf8.decode(request.bodyBytes, allowMalformed: true);
+      expect(body, contains('name="mode"\r\n\r\nhand'));
+      return http.Response(
+        jsonEncode(hasilJson),
+        201,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final hasil =
+        await serviceDengan(client).skriningFoto(fotoJpg, mode: 'tangan');
+    expect(hasil.id, 'c8f7-1234');
   });
 
   test('SocketException → pesan ramah "tidak dapat terhubung"', () async {
