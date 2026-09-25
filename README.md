@@ -21,16 +21,16 @@ Aplikasi ini menggabungkan dua project:
 
 | Source | Isi | Status |
 |---|---|---|
-| **Capstone S5** — skrining anemia (ML + PCD + Fuzzy + NestJS + Web admin + DW) | `capstone/` (dataset & ML mirror) + `backend/` (NestJS) | 🚧 Bagian inti sedang dibangun |
+| **Capstone S5** — skrining anemia (ML + PCD + Fuzzy + NestJS + Web admin + DW) | `capstone/` (dataset & ML mirror) + `backend/` (NestJS) | ✅ Deploy VM Cloud terverifikasi (Sep 2026) |
 | **Mobile Programming** (16 modul, kurikulum [arifhidayah.vercel.app](https://arifhidayah.vercel.app/flutter)) | Fondasi app + fitur latihan Modul 1–15 | ✅ Selesai (release APK) |
 
 **Status aplikasi:**
 - ✅ **Tahap 1 (Modul 1–15):** app pemantauan + fitur latihan (jadwal, galeri lab, direktori *placeholder*) — APK rilis tersedia
-- 🚧 **Tahap 2 (Capstone):** fitur inti skrining foto kuku **terintegrasi backend** (mobile → NestJS → ML → Postgres → verifikasi web admin). **DW aktif** (star schema + tren dashboard) · **fuzzy rekomendasi aktif** (PSC1, form konteks di mobile). Berikutnya: akun pengguna
+- ✅ **Tahap 2 (Capstone):** skrining foto kuku **terintegrasi backend** (mobile → NestJS → ML → Postgres → verifikasi web admin) + **akun pengguna** (daftar/login JWT, riwayat & konteks per akun) + **DW aktif** (star schema, `dim_pasien`, tren dashboard) + **fuzzy rekomendasi aktif** (PSC1). **Deploy penuh ke VM Cloud terverifikasi** (API :3007, web admin :8081, rilis APK `v1.1.1`)
 
 ## ✨ Fitur
 
-### 🚀 Fitur Inti Capstone (sedang dibangun)
+### 🚀 Fitur Inti Capstone (aktif)
 
 | Fitur | Keterangan | Matkul Capstone |
 |---|---|---|
@@ -71,8 +71,11 @@ Unduh APK rilis dari **[Releases](https://github.com/xzael24/anemia-care/release
 
 Cara install: buka file APK di HP Android → izinkan "Install dari sumber tidak dikenal" → selesai.
 
-> 📱 **APK dari Releases default mengarah ke Android emulator** (`10.0.2.2:3007`).
-> Untuk HP fisik / server, build ulang dengan `--dart-define=API_BASE_URL=...`
+> 📱 **Base URL APK di Releases:**
+> - `v1.1.0` ke bawah → default emulator (`10.0.2.2:3007`).
+> - `v1.1.1` → dibuild untuk server demo **`http://192.168.56.101:3007/api`** (VM Cloud).
+>
+> Untuk HP fisik / server lain, build ulang dengan `--dart-define=API_BASE_URL=...`
 > — lihat **[DEPLOY.md](DEPLOY.md)**.
 
 ## 🔧 Build dari Source
@@ -124,7 +127,9 @@ curl -F "photo=@foto_kuku.jpg" http://192.168.56.101:3000/api/screening
 
 **Terverifikasi (Sep 2026):** container `api` + `ml` + `db` healthy di VM; foto anemic → `source:"ml"`, confidence 0,92 (indikasi anemia); foto non-anemic → FP anemia 0,67 (konsisten spec 0,771). **Persistensi terbukti:** riwayat tersimpan di Postgres & tetap ada setelah `docker compose restart api`. **Auth terbukti:** login → JWT HS256 (8 jam), `GET /api/screening` 401 tanpa token / 200 dengan token. **Web admin terbukti (browser E2E):** login → dashboard (statistik + tabel riwayat) → verifikasi per-skrining → status `terverifikasi` + verifikator tersimpan di Postgres. **Mobile terbukti:** `SkriningService` (Dart, multipart) → `POST /api/screening` 201 `source:"ml"` + disclaimer (smoke e2e di suite test Flutter); 44 test Flutter lulus. **DW terbukti:** star schema `dw` (dim_waktu/dim_hasil/fact_skrining) di Postgres; ETL trigger real-time (foto baru langsung masuk fact; verifikasi menggeser dim_hasil) + backfill saat start (8 baris lama → 9 fact); `GET /api/dashboard/summary` → `{total:9, anemia:8, normal:1, verified:2, anemiaRatePct:88.9}` & `trend` → `[{tanggal:"2026-09-24",...}]`; 401 tanpa token; web admin menampilkan bar chart tren + pill rate (browser E2E). **Fuzzy terbukti (PSC1):** `POST /api/rekomendasi` — normal tanpa konteks → `0.129 🟢 "pola makan"`; anemia 0.92 + hamil + pusing + kulit gelap → `0.837 🔴 "segera periksa puskesmas"`; confidence 1.5 → 400; 12 rule Mamdani di `GET /api/rekomendasi/aturan`; form konteks di mobile (gejala/risiko/tipe kulit) → badge rekomendasi (7 test Flutter baru → total 51; unit backend 21; e2e 14).
 
-> Catatan: tanpa `DB_HOST` (mis. unit test), riwayat & akun disimpan di memori (default aman). **Ganti `JWT_SECRET`/`ADMIN_PASSWORD` di environment produksi!** Langkah berikutnya: akun pengguna (riwayat & konteks per akun), push milestone ke GitHub.
+**Deploy VM Cloud terverifikasi (2026-09-25, rilis `v1.1.1`):** stack dikirim via tarball (`deploy/anemia-deploy.tar.gz`, tanpa node_modules/.venv) → `docker compose up -d --build` di Ubuntu Server (VirtualBox, host-only `192.168.56.101`) → container `api`/`ml`/`db` healthy. **Akun pasien:** `POST /api/pasien/daftar` → `POST /api/pasien/login` → JWT HS256 8 jam → `GET /api/pasien/me` & `GET /api/pasien/me/skrining` (riwayat per akun, join nama). **Screening ber-token:** upload dengan Bearer token → `pasienId` terisi; anonim tetap berjalan. **Verifikasi silang:** list screening mengembalikan `{"pasien":{"username":"budideploy","nama":"Budi Test Deploy"}}`; DW `GET /api/dashboard/summary` → `{total:4, pasien:1, laki:1, anemiaRatePct:100}` + trend 24–25 Sep; **`dim_pasien` terisi** (usia 24, laki, status sedang). **Fuzzy:** anemia + konteks → `0.871 🔴` + disclaimer permanen tiap hasil. **Web admin** (React build `VITE_API_URL=http://192.168.56.101:3007/api`) diserve container nginx `:8081` → HTTP 200, login `admin_kader`. **APK `v1.1.1`** (51.1 MB) terinstall & ter-launch di emulator AVD. Semua endpoint dites live via curl dari host.
+
+> Catatan: tanpa `DB_HOST` (mis. unit test), riwayat & akun disimpan di memori (default aman). **Ganti `JWT_SECRET`/`ADMIN_PASSWORD` di environment produksi!** (Di VM sudah diganti: `JWT_SECRET` random, `admin_kader`/`KaderAnemia#2026!`.)
 
 ## 🔌 API Endpoints
 
@@ -137,6 +142,10 @@ curl -F "photo=@foto_kuku.jpg" http://192.168.56.101:3000/api/screening
 | `GET` | `/api/dashboard/trend?days=14` | `admin`/`petugas` | Tren harian dari DW (`days` 1–90, default 30) |
 | `POST` | `/api/rekomendasi` | Publik | Fuzzy (PSC1): hasil visual + gejala/risiko/tipe kulit → rekomendasi |
 | `GET` | `/api/rekomendasi/aturan` | Publik | Tabel 12 rule Mamdani (dokumentasi diri) |
+| `POST` | `/api/pasien/daftar` | Publik | Daftar akun pasien (`username`, `nama`, `usia`, `gender`) |
+| `POST` | `/api/pasien/login` | Publik | Login pasien → JWT (8 jam) |
+| `GET` | `/api/pasien/me` | Token pasien | Profil pasien yang login |
+| `GET` | `/api/pasien/me/skrining` | Token pasien | Riwayat skrining milik akun |
 | `POST` | `/api/auth/login` | Publik | Login petugas → `{ accessToken, petugas }` |
 | `GET` | `/api/auth/me` | Token | Info petugas yang login |
 | `GET` | `/api/health` | Publik | Health check (Terminus) |

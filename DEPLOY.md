@@ -76,6 +76,11 @@ flutter build apk --release \
 **Alternatif USB (tanpa IP LAN):** `adb reverse tcp:3007 tcp:3000` lalu build
 dengan `--dart-define=API_BASE_URL=http://localhost:3007/api`.
 
+> Rilis **`v1.1.1`** (Sep 2026) sudah dibuild untuk server demo capstone dengan
+> `--dart-define=API_BASE_URL=http://192.168.56.101:3007/api` → langsung jalan
+> untuk VM host-only `192.168.56.101`. HP fisik di jaringan LAN berbeda harus
+> dibuild ulang dengan IP yang sesuai.
+
 ## 4. Web admin
 
 ```bash
@@ -86,12 +91,28 @@ VITE_API_URL=http://<IP_SERVER>:3007/api npm run build   # -> dist/
 
 Serve `dist/` dengan server statis apa pun (nginx, `npx serve dist`, dll).
 
+**Cara dipakai di VM (nginx container, port 8081):**
+
+```bash
+sudo cp -r dist /var/www/html
+docker run -d --name web-admin -p 8081:80 -v /var/www/html:/usr/share/nginx/html:ro nginx:alpine
+curl http://<IP_SERVER>:8081   # -> HTML app
+```
+
+Login web admin: username/password petugas produksi (`ADMIN_USERNAME` /
+`ADMIN_PASSWORD`, contoh VM: `admin_kader`).
+
 ## 5. Verifikasi end-to-end
 
-1. Buka web admin (IP server) → login petugas → lihat riwayat + tren DW.
-2. Di HP/emulator: **Daftar akun pasien** → buka tab Skrining → pilih foto kuku →
-   hasil indikasi awal + rekomendasi → cek riwayat di menu akun.
-3. Cek DW: `GET /api/dw/summary` (token admin) → `pasien/perempuan/laki` terisi.
+1. Jalankan stack → isi `.env` produksi (JWT_SECRET/ADMIN + DB) → `docker compose up -d --build` → semua container healthy.
+2. Buka web admin (IP server, port 8081) → login petugas → lihat riwayat + tren DW.
+3. Di HP/emulator: **Daftar akun pasien** → login → buka tab Skrining → pilih foto kuku →
+   hasil indikasi awal + rekomendasi → cek riwayat per akun (`GET /api/pasien/me/skrining`
+   dengan token pasien). Screening anonim (tanpa token) juga tetap berjalan.
+4. Cek backend terhubung ke akun: `GET /api/screening` (token petugas) → tiap baris
+   join nama pasien (`pasien.username`/`pasien.nama`).
+5. Cek DW: `GET /api/dashboard/summary` (token petugas) → `pasien/perempuan/laki` +
+   `anemiaRatePct`; `dim_pasien` berisi baris tiap pasien terdaftar (usia/gender/status).
 
 ## 6. Hardening & catatan produksi
 
