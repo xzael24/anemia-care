@@ -134,14 +134,18 @@ curl -F "photo=@foto_kuku.jpg" http://192.168.56.101:3000/api/screening
 **Capture kamera + mode foto tangan penuh (2026-09-25):** tombol Kamera di layar
 Skrining membuka **`KameraCaptureScreen`** — preview kamera live dengan **bingkai
 panduan kuku** di tengah (mode close-up) atau bingkai besar + instruksi jari ke
-atas (mode tangan penuh), tombol jepret/ganti kamera/galeri, dan fallback otomatis
+atas (mode tangan penuh), tombol jepret/ganti kamera/galeri, **lampu kilat
+default AKTIF** di mode close-up (dokumen arsitektur: "lampu kilat aktif", bisa
+dimatikan via toggle), dan fallback otomatis
 bila izin kamera ditolak/tidak tersedia (tawarkan buka galeri). Pengguna memilih
 mode **Close-up / Tangan penuh** (SegmentedButton) → petunjuk di layar berubah →
 field `mode` dikirim multipart (`closeup` default | `hand`) → backend meneruskan
 ke sidecar ML: `hand` memanggil **`/predict-hand`** (PCD segmentasi kuku otomatis +
 top-2/peak + `THRESHOLD_HAND=0.25`, AUC 0.794 figshare — angka jujur di
 `ml_service/README.md`), `closeup` tetap `/predict` (kontrak lama, `THRESHOLD=0.39`).
-Persyaratan deploy baru: `scipy` di `ml_service/requirements.txt` (dipakai PCD).
+**QC ketajaman aktif di kedua endpoint:** foto buram ditolak 400 (Laplacian
+Variance, `BLUR_THRESHOLD=40` — kalibrasi figshare; app menampilkan pesan minta
+ulang). Persyaratan deploy baru: `scipy` di `ml_service/requirements.txt` (dipakai PCD).
 
 ## 🔌 API Endpoints
 

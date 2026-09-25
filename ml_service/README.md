@@ -212,6 +212,34 @@ Catatan teknis: `rf_model.joblib` dilatih di sklearn 1.9.1 dan dievaluasi di
 1.7.2 — RandomForest inference deterministik terhadap struktur pohon, jadi
 angka di atas tidak terpengaruh (warning version hanya peringatan loader).
 
+## Quality Control: deteksi keburaman (2026-09-25)
+
+Lapis QC pertama dari dokumen arsitektur aktif di **kedua endpoint**
+(`/predict` dan `/predict-hand`): foto buram ditolak **400** sebelum masuk
+PCD/ML. Metode: Laplacian Variance (`cv2.Laplacian`, CV_64F) pada **skala
+analisis tetap** (sisi terpanjang → 480px) supaya skor tidak bergantung
+resolusi kamera.
+
+Kalibrasi threshold (jujur — `qc_blur_calibrate.py`, 251 foto figshare asli
++ versi Gaussian-blur):
+
+| Populasi | LV @480px |
+|---|---|
+| figshare asli (tajam) | min 69 · p1 76 · median 118 |
+| blur σ=2 | max 16 · median 12 |
+| blur σ=4 | max 3 |
+
+`BLUR_THRESHOLD = 40` — di tengah celah (16 < 40 < 69): foto tajam praktis
+tak pernah tertolak, buram wajar (>σ≈2) selalu tertolak. Uji live:
+
+| Input | Respons |
+|---|---|
+| `288.jpg` tajam | 200 · anemia 0.383 · 8 kuku (identik sebelum QC) |
+| `288.jpg` blur σ=4 | 400 "Foto terlalu buram (skor ketajaman 3)…" |
+
+Batas jujur: QC ini menyaring ketajaman saja. Lapisan (inai/kutek), struktur
+(rupanya retak/sobek) dan ROI sampling detail masih roadmap (KONSEP seksi 8).
+
 ## Roadmap (belum dikerjakan)
 
 - [x] Segmentasi kuku (PCD): bbox otomatis — dievaluasi (seksi PCD) + terbukti
@@ -219,7 +247,9 @@ angka di atas tidak terpengaruh (warning version hanya peringatan loader).
 - [x] Uji rantai PCD→crop→RF pada foto tangan penuh figshare (AUC 0.794)
 - [x] Integrasi PCD ke serving: `/predict-hand` (top-2/peak, THRESHOLD_HAND,
       fallback rotasi) — lihat seksi "Serving foto tangan penuh"
+- [x] QC lapis 1: deteksi keburaman (Laplacian) → tolak 400 (seksi QC)
 - [ ] Normalisasi pencahayaan (CLAHE/Retinex) + kalibrasi white balance
+- [ ] QC lanjutan: lapisan kuku (inai/kutek), struktur, ROI sampling detail
 - [ ] Estimasi Hb (regresi, subset nature) sebagai pendukung
 - [ ] Rilis CNN / ensemble RF+CNN sebagai alternatif model
 - [ ] Dockerfile + compose (backend + ml_service + db) untuk deploy cloud

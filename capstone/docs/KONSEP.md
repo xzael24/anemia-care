@@ -211,7 +211,9 @@ Batas jujur: precision PCD rendah (0.053 — kuku skin-colored nyaris tak
 terdiskriminasi oleh skor HSV), sisa gap PCD→GT (0.794 vs 0.879) ditentukan
 kualitas lokalisasi (IoU 0.594), bukan jumlah crop. Integrasi produk: endpoint
 `POST /predict-hand` (multipart `file`) di sidecar ML + mode foto "Tangan penuh"
-di app (kamera live + bingkai panduan kuku); threshold khusus `0.25`.
+di app (kamera live + bingkai panduan kuku); threshold khusus `0.25`. QC lapis
+pertama (deteksi keburaman, tolak 400) aktif di kedua endpoint; lampu kilat
+default **AKTIF** di mode foto kuku (dokumen arsitektur: "lampu kilat aktif").
 
 ### 7.1 Preprocessing
 - **Segmentasi:** konversi RGB→HSV, deteksi kontur (kulit vs kuku), fitting ellipse;
@@ -263,10 +265,11 @@ hanya citra valid yang masuk ke model ML.
 ### Cek yang dijalankan setelah capture:
 | # | Cek | Deteksi | Tindakan |
 |---|---|---|---|
-| 1 | Lapisan | Inai, kutek, kutek bening, kerudung warna | Tolak + instruksi bersihkan/ganti jari |
-| 2 | Struktur | Kuku retak, sobek, gigitan, ngelupas (plate area < ambang) | Tolak + saran jari lain |
-| 3 | Warna abnormal | Hematoma (bekas kecepit), jamur (kekuningan) | Tolak |
-| 4 | Zona sampel cukup | Kutikula tebal menutupi zona aman | Tolak + dorong kutikula / ganti jari |
+| 1 | Ketajaman ✅ aktif (2026-09-25) | Laplacian Variance < 40 @480px (`BLUR_THRESHOLD`) | Tolak 400 + minta ulang (fokus tajam, cahaya cukup) |
+| 2 | Lapisan | Inai, kutek, kutek bening, kerudung warna | Tolak + instruksi bersihkan/ganti jari |
+| 3 | Struktur | Kuku retak, sobek, gigitan, ngelupas (plate area < ambang) | Tolak + saran jari lain |
+| 4 | Warna abnormal | Hematoma (bekas kecepit), jamur (kekuningan) | Tolak |
+| 5 | Zona sampel cukup | Kutikula tebal menutupi zona aman | Tolak + dorong kutikula / ganti jari |
 
 ### Layering-nya:
 - **UI:** instruksi & konfirmasi sebelum foto ("pastikan kuku bersih tanpa inai/kutek")
@@ -590,5 +593,42 @@ siapa pegang role apa** — ditentukan minggu pertama berdasarkan minat & kemamp
 - Meta-analisis pallor pada anemia anak — Chalco et al., BMC Pediatrics (2005)
 - Kalantri et al. — akurasi pallor untuk deteksi anemia, PLoS ONE (2009)
 - Studi 2025 — korelasi warna kuku/lip/konjungtiva vs Hb (spectrophotometer, L*a*b*)
+
+---
+
+## 18. Deviasi terukur vs "Dokumen Arsitektur Sistem & Alur Kerja" (2026-09-25)
+
+Perbandingan jujur dokumen arsitektur vs implementasi saat ini — mana yang
+diadopsi, mana yang dideviasi beserta alasan teknis (biar laporan tidak
+menganggap "lupa"):
+
+| Komponen dokumen | Status implementasi | Catatan |
+|---|---|---|
+| Skrining awal (bukan diagnosis) + disclaimer | ✅ diadopsi | Permanen di backend + app |
+| Panduan bingkai kamera | ✅ diadopsi | Overlay bingkai kuku/tangan di kamera live |
+| **Lampu kilat aktif saat foto** | ✅ diadopsi 2026-09-25 | Default `FlashMode.always` mode kuku, `auto` mode tangan + toggle |
+| **QC ketajaman (Laplacian) → tolak & minta ulang** | ✅ diadopsi 2026-09-25 | Tolak 400; kalibrasi figshare (lihat seksi 8) |
+| Profil usia & jenis kelamin | ✅ diadopsi | Akun pasien + tipe kulit/hamil/riwayat |
+| Berat badan di profil | ❌ deviasi | Tidak relevan untuk skrining warna kuku; tidak dipakai fitur manapun |
+| GPS / koreksi elevasi (WHO 2011) | ❌ deviasi | Izin lokasi + API eksternal tanpa gain terukur: pipeline binary dipakai cut-off flat; koreksi hanya signifikan >1000 mdpl. Opsi ringan (dropdown kota + elevasi statis) = TBD |
+| Kuesioner klinis | ⚠️ sebagian | Form gejala/risiko/tipe kulit → masukan fuzzy, bukan 3-toggle CF |
+| Gray-World + CLAHE L\* | ❌ roadmap | Normalisasi pencahayaan tetap bernilai untuk domain baru |
+| Central ROI 40–50% skip kutikula/lunula | ⚠️ sebagian | Kotak crop high-DPI + fitur 33D (LAB + R-ratio hadir); detail ROI sampling = roadmap |
+| Random Forest | ✅ (beda jenis) | RF **classifier** (label + prob), bukan regressor |
+| Regresi Hb (Hb_visual, MAE/RMSE/R²) | ❌ deviasi terukur | Mannino ±10–15 g/L terlalu lebar untuk dipakai klinis; tetap roadmap sebagai pendukung, bukan output utama |
+| Fusi CF Kalantri `CF_final` | ⚠️ beda mekanisme | Diganti **fuzzy Mamdani 12 rule** (PSC1): skor visual + gejala + risiko → rekomendasi; lebih kaya & dievaluasi |
+| Ambang klaster Kemenkes 2023 (per siklus hidup) | ⚠️ sebagian | `AnemiaLogic` (modul edukasi/edukasi manual) memakai ambang 12.0 + keparahan; pipeline skrining binary = cut-off 120 g/L flat |
+| Badge Normal/Ringan/Sedang/Berat | ⚠️ sebagian | Di dashboard & edukasi manual (dari Hb lab); hasil skrining ML = binary indikasi |
+| Rekomendasi tatalaksana | ⚠️ sebagian | Fuzzy: pesan tindak lanjut + disclaimer; dosis TTD/Isi Piringku eksplisit = roadmap konten |
+| Red flag Hb < 8 | ⚠️ sebagian | `TingkatAnemia.berat` di AnemiaLogic (dipakai dashboard, belum di output skrining) |
+| DW star schema + dashboard tren | ✅ diadopsi | dim_* + fact + ETL + web admin |
+| Sync SQLite → cloud | ⚠️ sebagian | Riwayat lokal + per akun Cloud; sinkronisasi penuh = roadmap |
+| FastAPI (vs Flask) | ✅ diadopsi | Sidecar FastAPI |
+| Dataset Mendeley | ❌ deviasi | Pakai Kaggle (ghana/nature, latih) + figshare (uji PCD/rantai) — lisensi & jumlah gambar lebih jelas |
+| Negative testing buram | ✅ baru | 400 blur terverifikasi; test suite app tetap 74/74 |
+
+Ringkasan: komponen yang ditolak (GPS, berat badan, regresi Hb sebagai output
+utama, dataset Mendeley) ditolak dengan alasan terukur, bukan karena luput.
+Yang bisa dikejar tanpa risiko besar tetap tercatat di roadmap.
 
 > _Dokumen bersifat hidup — diupdate seiring keputusan tim & hasil eksplorasi._

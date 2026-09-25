@@ -8,9 +8,12 @@ Kontrak (dipakai backend NestJS -> ml.service.ts):
 Preprocessing serving (harus nyambung training):
   resize 224x224 (LANCZOS) -> RGB -> fitur 33D -> RandomForest proba.
 
-Catatan: v1 ini belum ada segmentasi kuku / normalisasi pencahayaan lanjutan
-(mirip gambar ghana/udayranjan yang emang close-up kuku). Segmen&bbox jadi
-iterasi PCD berikutnya.
+Quality Control lapis pertama (dokumen arsitektur): deteksi keburaman Laplacian
+Variance (BLUR_THRESHOLD=40, kalibrasi figshare+buram sintetis) -> 400 "foto buram,
+ambil ulang". Normalisasi pencahayaan (Gray-World/CLAHE) belum - roadmap.
+
+Segmentasi kuku otomatis (PCD) tersedia di endpoint /predict-hand (foto tangan
+penuh): mask kulit + grid fingertip -> top-2 box/peak -> crop -> fitur 33D.
 
 WAJIB: input = foto kuku close-up (kuku mengisi frame). Foto tangan penuh /
 foto ilmiah (kartu kalibrasi, lighting beda) = di luar domain model — hasil
@@ -47,6 +50,16 @@ THRESHOLD_HAND = 0.25
 # Resep inferensi rantai tangan penuh yang terukur (AUC 0.794 di figshare):
 # top-2 kotak kandidat per fingertip peak, agregasi prob = mean (+ median).
 KEEP_K = 2
+
+# --- Quality Control: deteksi keburaman (Laplacian Variance) ---
+# Kalibrasi pada 251 foto figshare (skala analisis 480px, qc_blur_calibrate.py):
+#   tajam   : min 69  | p1 76 | median 118
+#   blur s2 : max 16  | s4 max 3 | s6 max 2
+# THRESHOLD=40 ada di tengah celah (16 < 40 < 69): foto tajam tak pernah
+# tertolak, buram wajar (sigma>=2) selalu ditolak. Skala dinormalisasi supaya
+# nilai LV tidak bergantung resolusi kamera.
+BLUR_THRESHOLD = 40.0
+BLUR_ANALISIS = 480  # panjang sisi terpanjang sebelum hitung LV
 
 model = None
 
@@ -87,6 +100,10 @@ async def predict(file: UploadFile = File(...)):
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(400, "File bukan gambar valid") from exc
 
+    # QC lapis pertama: tolak foto buram (sebelum resize agar skala asli).
+    rgb_utuh = np.asarray(img, dtype=np.uint8)
+    _cek_keburaman(cv2.cvtColor(rgb_utuh, cv2.COLOR_RGB2BGR))
+
     img = img.resize((224, 224), Image.LANCZOS)
     rgb = np.asarray(img, dtype=np.uint8)
     feats = extract_features(rgb).reshape(1, -1)
@@ -113,6 +130,32 @@ def _pcd_available() -> bool:
         return True
     except ImportError:
         return False
+
+
+def _varian_laplacian(img_bgr):
+    """Laplacian Variance pada skala analisis tetap (anti-sensitif resolusi)."""
+    h, w = img_bgr.shape[:2]
+    skala = BLUR_ANALISIS / max(h, w)
+    if skala < 1:
+        img_bgr = cv2.resize(img_bgr, (int(w * skala), int(h * skala)))
+    gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+    return float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+
+def _cek_keburaman(img_bgr):
+    """QC lapis pertama (urutan dokumen arsitektur): tolak foto buram.
+
+    Threshold BLUR_THRESHOLD=40 (kalibrasi 251 foto figshare + blur sintetis,
+    lihat komentar konstanta). Mengembalikan skor LV; melempar 400 bila buram.
+    """
+    lv = _varian_laplacian(img_bgr)
+    if lv < BLUR_THRESHOLD:
+        raise HTTPException(
+            400,
+            f"Foto terlalu buram (skor ketajaman {lv:.0f}) - ambil ulang "
+            "dengan fokus tajam dan pencahayaan cukup.",
+        )
+    return lv
 
 
 def _best_nails(img_bgr):
@@ -165,6 +208,8 @@ async def predict_hand(file: UploadFile = File(...)):
         raise HTTPException(400, "File bukan gambar valid") from exc
 
     img_bgr = cv2.cvtColor(np.asarray(img, dtype=np.uint8), cv2.COLOR_RGB2BGR)
+    # QC lapis pertama (urutan dokumen): tolak foto buram sebelum PCD.
+    _cek_keburaman(img_bgr)
     best_img, cands = _best_nails(img_bgr)
     if not cands:
         raise HTTPException(

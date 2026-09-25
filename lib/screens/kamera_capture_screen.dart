@@ -47,7 +47,37 @@ class _KameraCaptureScreenState extends State<KameraCaptureScreen> {
   bool _mengambil = false;
   String? _galat;
 
+  /// Lampu kilat (dokumen arsitektur: "lampu kilat aktif" saat foto kuku).
+  /// Mode close-up default ALWAYS (close-up butuh terang & konsisten);
+  /// mode tangan penuh default AUTO. Bisa dimatikan user via toggle.
+  FlashMode _modeKilat = FlashMode.off;
+
   String get _mode => widget.mode;
+
+  bool get _kilatMenyala => _modeKilat != FlashMode.off;
+
+  /// Kilat awal sesuai mode + terapkan ke [c]. Beberapa perangkat tidak
+  /// mendukung flash — kegagalan diabaikan (ikon tetap menampilkan default).
+  Future<void> _terapkanKilat(CameraController c) async {
+    try {
+      await c.setFlashMode(
+        _mode == 'kuku' ? FlashMode.always : FlashMode.auto,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _toggleKilat() async {
+    final c = _controller;
+    if (c == null || _mengambil) return;
+    final baru = _kilatMenyala
+        ? FlashMode.off
+        : (_mode == 'kuku' ? FlashMode.always : FlashMode.auto);
+    try {
+      await c.setFlashMode(baru);
+      if (!mounted) return;
+      setState(() => _modeKilat = baru);
+    } catch (_) {}
+  }
 
   Future<XFile?> Function() get _pickGallery =>
       widget.pickGallery ??
@@ -94,6 +124,12 @@ class _KameraCaptureScreenState extends State<KameraCaptureScreen> {
       );
       _controller = controller;
       await controller.initialize();
+      if (_mode == 'kuku') {
+        _modeKilat = FlashMode.always;
+      } else {
+        _modeKilat = FlashMode.auto;
+      }
+      await _terapkanKilat(controller);
       if (!mounted) return;
       setState(() => _siap = true);
     } catch (e) {
@@ -138,6 +174,7 @@ class _KameraCaptureScreenState extends State<KameraCaptureScreen> {
     );
     try {
       await baru.initialize();
+      await _terapkanKilat(baru);
       await controller.dispose();
       if (!mounted) return;
       setState(() => _controller = baru);
@@ -228,6 +265,15 @@ class _KameraCaptureScreenState extends State<KameraCaptureScreen> {
             tooltip: 'Buka galeri',
             icon: const Icon(Icons.photo_library, color: Colors.white, size: 30),
             onPressed: _mengambil ? null : _bukaGaleri,
+          ),
+          IconButton(
+            tooltip: _kilatMenyala ? 'Matikan lampu kilat' : 'Nyalakan lampu kilat',
+            icon: Icon(
+              _kilatMenyala ? Icons.flash_on : Icons.flash_off,
+              color: Colors.white,
+              size: 30,
+            ),
+            onPressed: _mengambil ? null : _toggleKilat,
           ),
           GestureDetector(
             onTap: _mengambil ? null : _ambil,

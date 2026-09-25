@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 
@@ -59,7 +59,21 @@ export class MlService {
         body: form,
         signal: AbortSignal.timeout(15_000),
       });
-      if (!res.ok) throw new Error(`ML service HTTP ${res.status}`);
+      if (!res.ok) {
+        // 400 dari sidecar = foto DITOLAK QC (mis. buram). Jangan jatuh ke
+        // mock — user perlu tahu untuk ambil ulang; mock akan menipu.
+        if (res.status === 400) {
+          const body = (await res.json().catch(() => ({}))) as {
+            detail?: unknown;
+          };
+          const pesan =
+            typeof body.detail === 'string'
+              ? body.detail
+              : 'Foto ditolak pemeriksa kualitas: ambil ulang dengan fokus tajam dan pencahayaan cukup.';
+          throw new BadRequestException(pesan);
+        }
+        throw new Error(`ML service HTTP ${res.status}`);
+      }
       const data = (await res.json()) as Record<string, unknown>;
       return {
         prediction: {
@@ -73,6 +87,9 @@ export class MlService {
         source: 'ml',
       };
     } catch (err) {
+      // Tolakan QC (400, foto buram) BUKAN kegagalan sidecar: teruskan ke
+      // app supaya user tahu ambil ulang (jangan dijadikan mock yang menipu).
+      if (err instanceof BadRequestException) throw err;
       console.warn(
         `[ml] sidecar gagal (${(err as Error).message}) - fallback mock`,
       );
