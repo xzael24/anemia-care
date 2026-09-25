@@ -157,10 +157,13 @@ t=0.39 → 0.420/0.928 (terlalu konservatif untuk foto tangan penuh).
    inferensi. Ini bukti valuasi PCD yang nyata, bukan sekadar metrik IoU.
 3. RAW tanpa crop tetap gagal (rho +0.24, arah bahkan terbalik) — konfirmasi:
    crop kuku wajib; fitur warna mentah tidak tahan background/white-balance.
-4. Gap PCD→GT (0.794 vs 0.879) = FP crops (knuckle/kertas lolos deteksi) yang
-   melemahkan rata-rata pasien; sens pada threshold 0.39 rendah (0.42) karena
-   threshold serving itu diset untuk foto close-up. Iterasi lanjut: kalibrasi
-   warna (CLAHE/Retinex) + filter FP (score/occupancy lebih ketat).
+4. Gap PCD→GT (0.794 vs 0.879) **bukan** dari jumlah crop atau crop background:
+   experiment varian (`chain MODE=...`) — skin_frac filter 0.796, top1-per-peak 0.760
+   (lebih buruk, kehilangan coverage), top3 0.794 (flat). Plateau 0.794 ditentukan
+   **kualitas lokalisasi** (mean IoU matched 0.594): crop kuku PCD sedikit
+   meleset, fitur warnanya lebih berisik dari crop GT. Iterasi yang menjanjikan:
+   kalibrasi warna (CLAHE/Retinex) + PCD presisi lebih tinggi (IoU), bukan knobs
+   jumlah crop.
 5. **Operating point:** kalau app mau menerima foto tangan penuh, threshold
    0.39 harus diturunkan — `pcd_mean` @ t=0.25 mencapai sens 0.855 spec 0.503
    (ppv 0.396 vs prevalensi 27.6%). Selama app masih mewajibkan close-up,

@@ -25,7 +25,20 @@ PHOTO = r"C:\Users\AcerAG14\Documents\Kuliah\Semester 5 Percaya\CAPSTONE\data\ra
 META = r"C:\Users\AcerAG14\Documents\Kuliah\Semester 5 Percaya\CAPSTONE\data\raw\figshare-nature-photo-hb\metadata.csv"
 OUT = r"C:\Users\AcerAG14\AppData\Local\Temp\opencode\mltest\pcd_chain"
 import os
+import sys
 os.makedirs(OUT, exist_ok=True)
+
+MODE = sys.argv[1] if len(sys.argv) > 1 else 'all'   # all | filter | top1 | top3 | top4
+print(f"MODE={MODE}")
+
+if MODE == 'filter':
+    KEEP_K, DO_FILTER = 2, True
+elif MODE == 'top1':
+    KEEP_K, DO_FILTER = 1, False
+elif MODE in ('top3', 'top4'):
+    KEEP_K, DO_FILTER = int(MODE[3:]), False
+else:  # 'all'
+    KEEP_K, DO_FILTER = 2, False
 
 model = joblib.load(MODEL_PATH)
 df = pd.read_csv(META)
@@ -63,14 +76,17 @@ for _, row in df.iterrows():
     full = cv2.resize(full, (224, 224), interpolation=cv2.INTER_LANCZOS4)
     raw_prob = float(model.predict_proba(extract_features(full).reshape(1, -1))[0, 1])
 
-    # PCD inference: top-2 per peak by score (detector's own best boxes)
+    # PCD inference: top-K per peak by score (detector's own best boxes)
     skin = segment_skin(img_rot)
     cands = find_nails(skin, img_rot)
+    if DO_FILTER:
+        # drop pure-background boxes (paper / table, little skin inside)
+        cands = [c for c in cands if c['skin_frac'] >= 0.25]
     cands.sort(key=lambda c: (c['peak'], -c['score']))
     per_peak = {}
     pcd_keep = []
     for c in cands:
-        if per_peak.get(c['peak'], 0) < 2:
+        if per_peak.get(c['peak'], 0) < KEEP_K:
             per_peak[c['peak']] = per_peak.get(c['peak'], 0) + 1
             pcd_keep.append(c)
     pcd_probs = [p for p in (crop_proba(img_rot, c['bbox']) for c in pcd_keep) if p is not None]
@@ -88,7 +104,8 @@ for _, row in df.iterrows():
     })
 
 rdf = pd.DataFrame(rows)
-rdf.to_csv(os.path.join(OUT, "chain_results.csv"), index=False)
+csv_name = "chain_results.csv" if MODE == 'all' else f"chain_{MODE}.csv"
+rdf.to_csv(os.path.join(OUT, csv_name), index=False)
 print(f"processed: {len(rdf)} patients, used {rdf.n_gt_prob.sum()} GT crops, {rdf.n_pcd_prob.sum()} PCD crops")
 
 # ---- metrics per variant ----
