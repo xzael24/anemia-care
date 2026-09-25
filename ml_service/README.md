@@ -59,15 +59,15 @@ Uji empiris foto di luar domain training (lihat `NOTES.md`):
 |---|---|---|---|
 | Crop kuku kaggle anemia (`ghana_anemic_Fin-008_4`) | 0.93 | anemia ✅ | sesuai domain training |
 | Crop kuku kaggle normal (`nature_102_0`) | 0.02 | normal ✅ | sesuai domain training |
-| Foto tangan penuh figshare, Hb 4.4 g/dL (`288.jpg`) | 0.32 | normal ❌ | di luar domain |
-| Crop kuku figshare (bbox metadata), Hb 4.4 vs 16.9 | 0.47 vs 0.62 | anemia ❌ | terbalik / tanpa separasi |
-| Crop kuku figshare + mask background | 0.41 vs 0.41 | anemia ❌ | nol separasi |
+| Foto tangan penuh figshare, Hb 4.4 g/dL (`288.jpg`) | 0.32 | normal ❌ | di luar domain (tanpa crop) |
+| ~~Crop kuku figshare (bbox metadata), Hb 4.4 vs 16.9~~ | ~~0.47 vs 0.62~~ | ~~invalid~~ | koordinat lama keluar frame — lihat retest di seksi rantai PCD→ML |
+| ~~Crop kuku figshare + mask background~~ | ~~0.41 vs 0.41~~ | ~~invalid~~ | sama, koordinat keluar frame |
 
 **Kesimpulan:** model **valid pada foto kuku close-up** (kuku mengisi frame,
 seperti data training ghana/nature). Model **gagal pada foto di luar domain**
-(foto tangan penuh, foto ilmiah ber-kartu kalibrasi, pencahayaan berbeda)
-karena fitur 33D adalah warna mentah yang sensitif terhadap white-balance &
-background — tanpa kalibrasi warna dan tanpa isolasi kuku.
+jika dipakai tanpa crop — fitur 33D adalah warna mentah yang sensitif terhadap
+white-balance & background. **Dengan isolasi kuku (crop benar), rantai tetap
+berfungsi — lihat seksi "Rantai end-to-end PCD→ML" di bawah** (AUC 0.794-0.879).
 
 **Implikasi:**
 1. App mewajibkan foto close-up ("Kuku mengisi frame") — sudah ada di
@@ -113,10 +113,50 @@ profil ujung jari (jari hampir rata/sejajar frame). Evaluasi dilakukan
 penuh pada set tes (bukan hold-out) — angka di atas adalah ceiling dengan
 pendekatan HSV+grid ini, bukan klaim generalisasi.
 
+## Rantai end-to-end PCD→ML pada foto tangan penuh (2026-09-25)
+
+`pcd_figshare_chain.py`: foto tangan penuh figshare → PCD deteksi kuku →
+crop → fitur 33D → RF (`rf_model.joblib` kaggle close-up, tanpa retrain).
+Agregasi per pasien: mean/median/max prob atas kuku-kukunya. Label anemia:
+Hb < 120 g/L (cut-off WHO tanpa info jenis kelamin; 69/250 anemi).
+
+| Varian | n | Spearman rho (prob vs Hb) | p | AUC (Hb<120) | prob anemi (mean) | prob normal (mean) |
+|---|---|---|---|---|---|---|
+| RAW (tanpa crop) | 250 | +0.242 | 1e-4 | 0.415 | 0.329 | 0.339 |
+| GT crop mean (oracle loc.) | 250 | **-0.621** | 5e-28 | **0.879** | 0.504 | 0.230 |
+| GT crop median | 250 | -0.598 | 1e-25 | 0.880 | 0.521 | 0.229 |
+| GT crop max | 250 | -0.611 | 6e-27 | 0.860 | 0.615 | 0.329 |
+| **PCD crop mean (otomatis)** | 250 | -0.503 | 2e-17 | **0.794** | 0.387 | 0.261 |
+| PCD crop median | 250 | -0.516 | 2e-18 | 0.794 | 0.391 | 0.245 |
+| PCD crop max | 250 | -0.348 | 2e-8 | 0.733 | 0.600 | 0.483 |
+
+Sens/spec pada THRESHOLD serving (0.39): **GT mean 0.754 / 0.840**,
+**PCD mean 0.420 / 0.928**.
+
+**Bacaan penting (jujur):**
+1. Uji crop lama ("0.47 vs 0.62 terbalik") **tidak valid** — koordinat transform
+   keluar frame. Retest dengan koordinat benar: korelasi negatif kuat & konsisten
+   (Hb rendah → prob anemia tinggi), AUC GT-oracle **0.879** (≈ AUC test RF
+   baseline 0.846).
+2. PCD sebagai localizer sudah membawa chain otomatis ke **AUC 0.794** pada foto
+   tangan penuh out-of-domain — hanya ~0.085 di bawah oracle, tanpa GT di
+   inferensi. Ini bukti valuasi PCD yang nyata, bukan sekadar metrik IoU.
+3. RAW tanpa crop tetap gagal (rho +0.24, arah bahkan terbalik) — konfirmasi:
+   crop kuku wajib; fitur warna mentah tidak tahan background/white-balance.
+4. Gap PCD→GT (0.794 vs 0.879) = FP crops (knuckle/kertas lolos deteksi) yang
+   melemahkan rata-rata pasien; sens pada threshold 0.39 rendah (0.42) karena
+   threshold serving itu diset untuk foto close-up. Iterasi lanjut: kalibrasi
+   warna (CLAHE/Retinex) + filter FP (score/occupancy lebih ketat).
+
+Catatan teknis: `rf_model.joblib` dilatih di sklearn 1.9.1 dan dievaluasi di
+1.7.2 — RandomForest inference deterministik terhadap struktur pohon, jadi
+angka di atas tidak terpengaruh (warning version hanya peringatan loader).
+
 ## Roadmap (belum dikerjakan)
 
-- [x] Segmentasi kuku (PCD): bbox otomatis — prototipe dievaluasi (lihat seksi PCD);
-      integrasi crop kuku ke pipeline fitur belum
+- [x] Segmentasi kuku (PCD): bbox otomatis — dievaluasi (seksi PCD) + terbukti
+      berguna end-to-end (seksi rantai PCD→ML); integrasi ke serving belum
+- [x] Uji rantai PCD→crop→RF pada foto tangan penuh figshare (AUC 0.794)
 - [ ] Normalisasi pencahayaan (CLAHE/Retinex) + kalibrasi white balance
 - [ ] Estimasi Hb (regresi, subset nature) sebagai pendukung
 - [ ] Rilis CNN / ensemble RF+CNN sebagai alternatif model
