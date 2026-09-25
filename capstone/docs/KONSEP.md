@@ -181,11 +181,11 @@ Web tidak dibuat penuh; lingkup awalnya dua hal:
 ```
 Foto kuku (mobile)
       ↓
-[PCD] Segmentasi kuku (isolasi nail plate dari kulit/latar)
+[PCD] Segmentasi kuku ✅ ->  terintegrasi ke serving (/predict-hand, top-2/peak)
       ↓
-[PCD] Normalisasi pencahayaan (CLAHE / Retinex)
+[PCD] Normalisasi pencahayaan (CLAHE / Retinex) ⬜ ->  roadmap, belum
       ↓
-[PCD] Ekstraksi fitur warna (R/(G+B); koordinat a* di CIELAB)
+[PCD] Ekstraksi fitur warna (R/(G+B); koordinat a* di CIELAB) ✅ (33D, RandomForest)
       ↓
 [ML]  Model: klasifikasi (Normal / Indikasi Ringan / Indikasi Berat)
       ↓
@@ -193,6 +193,25 @@ Hasil + confidence score → rekam medis (NestJS)
       ↓
 [PSC1] Fuzzy Logic: gabung hasil visual + profil user → rekomendasi personal
 ```
+
+### 7.0 Status implementasi terukur (2026-09-25)
+
+Angka jujur (detail lengkap: `ml_service/README.md` di repo apply; dataset
+figshare Nature 250 foto tangan penuh, evaluasi pada set tes penuh = ceiling
+empiris, bukan hold-out):
+
+| Komponen | Hasil terukur | Ambang target |
+|---|---|---|
+| PCD recall@0.5 (vs GT box) | **0.657** (493/750), IoU matched 0.594 | ~0.5 (localizer) |
+| Rantai otomatis PCD→crop→RF (AUC) | **0.794** (GT-oracle 0.879; RAW 0.415) | evaluasi e2e |
+| Operating point tangan penuh | t=0.25 → sens 0.855 · spec 0.503 | recall ≥ 0.85 |
+| Serving close-up (domain training) | sens 0.877 · spec 0.614 (test) | recall ≥ 0.85 ✅ |
+
+Batas jujur: precision PCD rendah (0.053 — kuku skin-colored nyaris tak
+terdiskriminasi oleh skor HSV), sisa gap PCD→GT (0.794 vs 0.879) ditentukan
+kualitas lokalisasi (IoU 0.594), bukan jumlah crop. Integrasi produk: endpoint
+`POST /predict-hand` (multipart `file`) di sidecar ML + mode foto "Tangan penuh"
+di app (kamera live + bingkai panduan kuku); threshold khusus `0.25`.
 
 ### 7.1 Preprocessing
 - **Segmentasi:** konversi RGB→HSV, deteksi kontur (kulit vs kuku), fitting ellipse;
@@ -379,7 +398,7 @@ Karena sinyalnya **warna**, prioritas tertinggi:
 - Tabel statistik per dataset: jumlah foto, jumlah orang unik, distribusi kelas,
   ukuran piksel, metadata yang tersedia
 - Contact sheet sampel foto (normal vs anemia) → bahan diskusi & lampiran laporan
-- Cek bounding box (Nature) vs segmentasi otomatis kalian
+- Cek bounding box (Nature) vs segmentasi otomatis ✅ (PCD recall@0.5 0.657, IoU 0.594 — lihat 7.0)
 
 ### i. Penyimpanan & lisensi
 - `data/raw/` = dataset mentah (jangan di-commit git — besar); `data/processed/` =
