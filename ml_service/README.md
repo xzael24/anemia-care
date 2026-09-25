@@ -76,9 +76,47 @@ background — tanpa kalibrasi warna dan tanpa isolasi kuku.
    agar serving tahan terhadap foto non-close-up. Hasil uji ini adalah bukti
    evaluasi untuk laporan capstone (kejujuran model + arah iterasi).
 
+## PCD: segmentasi kuku otomatis (2026-09-25) — evaluasi vs GT figshare
+
+Pipeline prototipe di `pcd_segment_eval.py` (mask kulit HSV → profil
+`top_edge` → peak fingertip → grid kotak kandidat 50×55):
+
+- Filter body **column occupancy** `>=0.4` (fraksi kulit pada `py..py+150`)
+  menggantikan run kontigu — kuku/polish/kerutan membuat gap di kolom jari
+  asli, sedangkan titik noise (tekstur kertas) occupancy-nya ~0.1.
+- Peak dengan **prominence 2, distance 25** (jari pendek prom 3-6; distance
+  >=30 menggabungkan jari yang berdekatan → peak tunggal).
+- Grid **multi-offset vertikal** `10..210` (step 25) + **x-shift ±14**:
+  kuku umumnya 10-25px di bawah ujung jari, tapi minoritas besar 45-210px
+  (jari miring/pendek), dan pusat kuku bisa ~20px di luar kolom fingertip.
+- Per-peak top-10 + cap global 45; ranking final oleh greedy IoU matching.
+
+**Hasil (250 foto figshare, cocok IoU>=0.5, greedy):**
+
+| Metrik | Nilai |
+|---|---|
+| Recall@0.5 (per GT box) | **0.657** (493/750) |
+| Per-image recall@0.5 (mean / median) | 0.657 / 0.667 |
+| Foto recall sempurna (recall=1.0) | 50/250 (20%) |
+| Foto recall=0 | 3/250 (1.2%) |
+| Precision@0.5 | 0.053 |
+| Mean IoU (matched boxes) | 0.594 (n=605) |
+
+**Batas jujur:** precision rendah karena skor kuku (`1 - skin_frac`) nyaris
+tidak mendiskriminasi — GT center kuku figshare 98.9% di dalam mask kulit
+(kuku skin-colored, tanpa lubang) sehingga ranking antar-sibling grid
+hampir acak; cap global hanya memangkas noise kasar, FP dominan. Deteksi
+tetap berguna sebagai *localizer*: recall 0.657 mengalahkan target ~0.5,
+IoU matched 0.594 cukup untuk crop kuku. Sisa 3 foto recall=0 dan
+near-miss (IoU 0.24-0.37) adalah kuku yang terletak sangat jauh dari
+profil ujung jari (jari hampir rata/sejajar frame). Evaluasi dilakukan
+penuh pada set tes (bukan hold-out) — angka di atas adalah ceiling dengan
+pendekatan HSV+grid ini, bukan klaim generalisasi.
+
 ## Roadmap (belum dikerjakan)
 
-- [ ] Segmentasi kuku (PCD): bbox/mask otomatis sebelum ekstraksi fitur
+- [x] Segmentasi kuku (PCD): bbox otomatis — prototipe dievaluasi (lihat seksi PCD);
+      integrasi crop kuku ke pipeline fitur belum
 - [ ] Normalisasi pencahayaan (CLAHE/Retinex) + kalibrasi white balance
 - [ ] Estimasi Hb (regresi, subset nature) sebagai pendukung
 - [ ] Rilis CNN / ensemble RF+CNN sebagai alternatif model
