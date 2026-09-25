@@ -34,7 +34,7 @@ Aplikasi ini menggabungkan dua project:
 
 | Fitur | Keterangan | Matkul Capstone |
 |---|---|---|
-| 📷 **Skrining Foto Kuku** | **Kamera live dengan bingkai panduan kuku** (sejajarkan kuku sebelum jepret) / galeri → petunjuk kualitas foto → mode **Close-up** (1 kuku) atau **Tangan penuh** (deteksi kuku otomatis PCD) → `POST /api/screening` (multipart, field `mode`) → analisis ML | PCD + ML |
+| 📷 **Skrining Foto Kuku** | **Kamera live dengan bingkai panduan kuku** + **lampu kilat default AKTIF** (sejajarkan kuku sebelum jepret, kilat bisa dimatikan) / galeri → petunjuk kualitas foto → mode **Close-up** (1 kuku) atau **Tangan penuh** (deteksi kuku otomatis PCD) → `POST /api/screening` (multipart, field `mode`) → analisis ML · foto buram ditolak QC (ambil ulang) | PCD + ML |
 | 🎯 **Hasil Indikasi** | Badge 🟢/🟡/🔴 + confidence score + **disclaimer permanen** ("bukan diagnosis medis") | ML + Framework |
 | 🧠 **Rekomendasi Personal (Fuzzy)** | Konteks pengguna (gejala, menstruasi, kehamilan, tipe kulit) digabung hasil visual → rekomendasi tindak lanjut | PSC1 |
 | 🗂️ **Riwayat & Verifikasi** | Riwayat skrining per akun + status verifikasi petugas (web) + tren indikasi | Framework + DW |
