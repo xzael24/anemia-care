@@ -51,6 +51,31 @@ Kontrak:
 Isi `ML_SERVICE_URL=http://localhost:8000` di `../backend/.env`, lalu jalankan
 keduanya. `POST /api/screening` akan memakai prediksi sungguhan (`source: "ml"`).
 
+## Temuan evaluasi — keterbatasan domain (2026-09-25)
+
+Uji empiris foto di luar domain training (lihat `NOTES.md`):
+
+| Input | Prob (RF) | Label | Catatan |
+|---|---|---|---|
+| Crop kuku kaggle anemia (`ghana_anemic_Fin-008_4`) | 0.93 | anemia ✅ | sesuai domain training |
+| Crop kuku kaggle normal (`nature_102_0`) | 0.02 | normal ✅ | sesuai domain training |
+| Foto tangan penuh figshare, Hb 4.4 g/dL (`288.jpg`) | 0.32 | normal ❌ | di luar domain |
+| Crop kuku figshare (bbox metadata), Hb 4.4 vs 16.9 | 0.47 vs 0.62 | anemia ❌ | terbalik / tanpa separasi |
+| Crop kuku figshare + mask background | 0.41 vs 0.41 | anemia ❌ | nol separasi |
+
+**Kesimpulan:** model **valid pada foto kuku close-up** (kuku mengisi frame,
+seperti data training ghana/nature). Model **gagal pada foto di luar domain**
+(foto tangan penuh, foto ilmiah ber-kartu kalibrasi, pencahayaan berbeda)
+karena fitur 33D adalah warna mentah yang sensitif terhadap white-balance &
+background — tanpa kalibrasi warna dan tanpa isolasi kuku.
+
+**Implikasi:**
+1. App mewajibkan foto close-up ("Kuku mengisi frame") — sudah ada di
+   `lib/screens/skrining_screen.dart`.
+2. Roadmap PCD di bawah (segmentasi kuku + kalibrasi warna) menjadi prasyarat
+   agar serving tahan terhadap foto non-close-up. Hasil uji ini adalah bukti
+   evaluasi untuk laporan capstone (kejujuran model + arah iterasi).
+
 ## Roadmap (belum dikerjakan)
 
 - [ ] Segmentasi kuku (PCD): bbox/mask otomatis sebelum ekstraksi fitur

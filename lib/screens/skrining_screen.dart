@@ -319,6 +319,7 @@ class _PetunjukCard extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 6),
+            Text('• Kuku mengisi frame (close-up) — jangan foto tangan penuh'),
             Text('• Pencahayaan cukup & fokus pada kuku'),
             Text('• Foto 1 jari (biasanya telunjuk), latar netral'),
             Text('• Tanpa kutek / inai / riasan kuku'),

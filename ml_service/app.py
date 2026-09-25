@@ -11,6 +11,10 @@ Preprocessing serving (harus nyambung training):
 Catatan: v1 ini belum ada segmentasi kuku / normalisasi pencahayaan lanjutan
 (mirip gambar ghana/udayranjan yang emang close-up kuku). Segmen&bbox jadi
 iterasi PCD berikutnya.
+
+WAJIB: input = foto kuku close-up (kuku mengisi frame). Foto tangan penuh /
+foto ilmiah (kartu kalibrasi, lighting beda) = di luar domain model — hasil
+probabilitas tidak bermakna (lihat ml_service/README.md "Temuan evaluasi").
 """
 from contextlib import asynccontextmanager
 from io import BytesIO
